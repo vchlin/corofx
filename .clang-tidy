@@ -1,0 +1,21 @@
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -readability-convert-member-functions-to-static,
+  -readability-identifier-length,
+  -readability-named-parameter
+
+CheckOptions:
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 2
+  - key: readability-implicit-bool-conversion.AllowPointerConditions
+    value: true
