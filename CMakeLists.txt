@@ -53,11 +53,13 @@ target_sources(CoroFX
         include/corofx/config.hpp
         include/corofx/detail/type_id.hpp
         include/corofx/detail/type_set.hpp
+        include/corofx/effect.hpp
         include/corofx/handler.hpp
         include/corofx/task.hpp
     PRIVATE
         src/detail/type_id.cpp
         src/detail/type_set.cpp
+        src/effect.cpp
         src/handler.cpp
         src/task.cpp)
 target_link_libraries(CoroFX PRIVATE CommonConfig)

@@ -1,0 +1,1 @@
+#include "corofx/effect.hpp"

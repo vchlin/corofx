@@ -11,8 +11,14 @@ struct foo {
 
     int x;
 };
-struct bar {};
-struct baz {};
+
+struct bar {
+    using return_type = void;
+};
+
+struct baz {
+    using return_type = void;
+};
 
 auto blah() -> task<char, bar, baz> {
     std::cout << "blah: 0\n";

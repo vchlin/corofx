@@ -1,5 +1,6 @@
 #pragma once
 
+#include "corofx/effect.hpp"
 #include "detail/type_set.hpp"
 #include "handler.hpp"
 
@@ -131,6 +132,7 @@ public:
     auto await_suspend(std::coroutine_handle<U> frame) noexcept -> std::coroutine_handle<> {
         auto* p = (promise_base*){&frame.promise()};
         for (auto* k = p; k; p = k, k = k->cont_)
+            // TODO: Create a coroutine handle here for effect handler.
             if (k->handlers_ && k->handlers_->handle(eff_)) return frame;
         // TODO: WIP
         try {
@@ -141,8 +143,14 @@ public:
         return std::noop_coroutine();
     }
 
+    auto await_resume() noexcept -> void {
+        // TODO: WIP.
+    }
+
 private:
     E eff_;
+    // TODO: WIP
+    // E::return_type value_;
 };
 
 template<typename T = void>
