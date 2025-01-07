@@ -1,87 +1,13 @@
 #pragma once
 
 #include "detail/type_set.hpp"
-#include "handler.hpp"
+#include "promise.hpp"
 
 #include <concepts>
 #include <coroutine>
-#include <exception>
-#include <optional>
 #include <utility>
 
 namespace corofx {
-
-// Base promise type.
-class promise_base {
-public:
-    struct final_awaiter : std::suspend_always {
-        template<std::derived_from<promise_base> U>
-        auto await_suspend(std::coroutine_handle<U> frame) noexcept -> std::coroutine_handle<> {
-            if (auto* k = frame.promise().cont_) return k->frame_;
-            return std::noop_coroutine();
-        }
-    };
-
-    template<typename P>
-    class task_awaiter;
-    template<typename HT>
-    class handled_task_awaiter;
-    template<typename E>
-    class effect_awaiter;
-
-    promise_base(promise_base const&) = delete;
-    promise_base(promise_base&&) = delete;
-    auto operator=(promise_base const&) -> promise_base& = delete;
-    auto operator=(promise_base&&) -> promise_base& = delete;
-
-    [[nodiscard]]
-    constexpr auto initial_suspend() const noexcept -> std::suspend_always {
-        return {};
-    }
-
-    [[noreturn]] auto unhandled_exception() noexcept -> void { std::terminate(); }
-    [[nodiscard]] auto final_suspend() const noexcept -> final_awaiter { return {}; }
-
-    auto unhandled_effect() -> void {
-        if (auto r = unhandled_) std::rethrow_exception(r);
-    }
-
-protected:
-    promise_base(std::coroutine_handle<> frame) noexcept : frame_{frame} {}
-    ~promise_base() = default;
-
-private:
-    auto set_cont(promise_base& cont) noexcept -> std::coroutine_handle<> {
-        cont_ = &cont;
-        return frame_;
-    }
-
-    std::coroutine_handle<> const frame_;
-    promise_base* cont_{};
-    std::exception_ptr unhandled_;
-    handler_list* handlers_{};
-};
-
-template<typename P>
-class promise_base::task_awaiter : public std::suspend_always {
-public:
-    explicit task_awaiter(P& p) noexcept : p_{p} {}
-    task_awaiter(task_awaiter const&) = delete;
-    task_awaiter(task_awaiter&&) = delete;
-    ~task_awaiter() = default;
-    auto operator=(task_awaiter const&) -> task_awaiter& = delete;
-    auto operator=(task_awaiter&&) -> task_awaiter& = delete;
-
-    template<std::derived_from<promise_base> U>
-    auto await_suspend(std::coroutine_handle<U> frame) noexcept -> std::coroutine_handle<> {
-        return p_.set_cont(frame.promise());
-    }
-
-    auto await_resume() noexcept -> P::value_type { return p_.take_value(); }
-
-private:
-    P& p_;
-};
 
 template<typename Task, typename... Hs>
 class handled_task {
@@ -91,84 +17,28 @@ class handled_task {
     friend promise_base;
 
 public:
-    using task = Task;
-    using effects = Task::effects::template subtract<typename Hs::effect...>;
+    using task_type = Task;
+    using value_type = task_type::value_type;
+    using effect_types = task_type::effect_types::template subtract<
+        typename Hs::effect_type...>::template add<typename Hs::task_type::effect_types...>;
 
     handled_task(Task task, Hs... handlers) noexcept
-        : task_{std::move(task)}, handlers_{std::move(handlers)...} {}
+        : task_{std::move(task)}, handlers_{std::move(handlers)...} {
+        task_.frame_.promise().handlers_ = &handlers_;
+    }
+
+    // TODO: Make this noexcept?
+    auto operator()() -> value_type
+        requires(effect_types::empty)
+    {
+        // TODO: Remove duplicate code.
+        task_.frame_.resume();
+        return task_.frame_.promise().take_value();
+    }
 
 private:
-    Task task_;
+    task_type task_;
     handler_list_impl<Hs...> handlers_;
-};
-
-template<typename HT>
-class promise_base::handled_task_awaiter : public std::suspend_always {
-public:
-    explicit handled_task_awaiter(HT ht) noexcept : ht_{std::move(ht)} {
-        ht_.task_.frame_.promise().handlers_ = &ht_.handlers_;
-    }
-
-    template<std::derived_from<promise_base> U>
-    auto await_suspend(std::coroutine_handle<U> frame) noexcept -> std::coroutine_handle<> {
-        return ht_.task_.frame_.promise().set_cont(frame.promise());
-    }
-
-    auto await_resume() noexcept -> HT::task::promise_type::value_type {
-        return ht_.task_.frame_.promise().take_value();
-    }
-
-private:
-    HT ht_;
-};
-
-template<typename E>
-class promise_base::effect_awaiter : public std::suspend_always {
-public:
-    explicit effect_awaiter(E eff) noexcept : eff_{std::move(eff)} {}
-
-    template<std::derived_from<promise_base> U>
-    auto await_suspend(std::coroutine_handle<U> frame) noexcept -> std::coroutine_handle<> {
-        auto* p = (promise_base*){&frame.promise()};
-        for (auto* k = p; k; p = k, k = k->cont_)
-            if (k->handlers_ && k->handlers_->handle(eff_)) return frame;
-        // TODO: WIP
-        try {
-            throw std::move(eff_);
-        } catch (...) {
-            p->unhandled_ = std::current_exception();
-        }
-        return std::noop_coroutine();
-    }
-
-private:
-    E eff_;
-};
-
-template<typename T = void>
-class promise_for;
-
-template<>
-class promise_for<> : public promise_base {
-public:
-    using promise_base::promise_base;
-
-    constexpr auto return_void() const noexcept -> void {}
-
-    constexpr auto take_value() const noexcept -> void {}
-};
-
-template<typename T>
-class promise_for : public promise_base {
-public:
-    using promise_base::promise_base;
-
-    auto return_value(T value) noexcept -> void { value_ = std::move(value); }
-
-    auto take_value() noexcept -> T { return std::move(*value_); }
-
-private:
-    std::optional<T> value_;
 };
 
 // Represents a unit of computation that is potentially effectful.
@@ -179,11 +49,16 @@ class task {
     friend class task;
     // TODO: Remove friend?
     friend promise_base;
+    template<typename E, typename F>
+    friend class handler;
+    template<typename Task, typename... Hs>
+    friend class handled_task;
 
 public:
     class promise_type;
     using handle_type = std::coroutine_handle<promise_type>;
-    using effects = detail::type_set<Es...>;
+    using value_type = T;
+    using effect_types = detail::type_set<Es...>;
 
     task(task const&) = delete;
     task(task&& that) noexcept : frame_{std::exchange(that.frame_, {})} {}
@@ -199,18 +74,21 @@ public:
         return *this;
     }
 
-    auto operator()() -> T {
+    // TODO: Make this noexcept?
+    auto operator()() -> T
+        requires(sizeof...(Es) == 0)
+    {
         frame_.resume();
-        auto& p = frame_.promise();
-        p.unhandled_effect();
-        return p.take_value();
+        return frame_.promise().take_value();
     }
 
     // Runs the task with the provided handlers when awaited.
     template<typename... Hs>
     auto with(Hs... handlers) && -> handled_task<task, Hs...>
         requires(
-            detail::type_set<Es...>::template contains<detail::type_set<typename Hs::effect...>>)
+            detail::type_set<Es...>::template contains<
+                detail::type_set<typename Hs::effect_type...>> &&
+            (std::same_as<value_type, typename Hs::task_type::value_type> && ...))
     {
         return handled_task{std::move(*this), std::move(handlers)...};
     }
@@ -223,17 +101,20 @@ private:
         swap(frame_, that.frame_);
     }
 
+    [[nodiscard]]
+    auto release() noexcept -> handle_type {
+        return std::exchange(frame_, {});
+    }
+
     handle_type frame_{};
 };
 
 template<typename T, std::movable... Es>
-class task<T, Es...>::promise_type : public promise_for<T> {
+class task<T, Es...>::promise_type : public promise_impl<T> {
 public:
-    template<typename E>
-    using effect_awaiter = promise_base::template effect_awaiter<E>;
     using value_type = T;
 
-    promise_type() noexcept : promise_for<T>{handle_type::from_promise(*this)} {}
+    promise_type() noexcept : promise_impl<T>{handle_type::from_promise(*this)} {}
 
     auto get_return_object() noexcept -> task { return task{handle_type::from_promise(*this)}; }
 
@@ -248,8 +129,8 @@ public:
     template<std::movable Task, typename... Hs>
     auto await_transform(handled_task<Task, Hs...> ht) noexcept
         -> promise_base::handled_task_awaiter<handled_task<Task, Hs...>>
-        requires(
-            detail::type_set<Es...>::template contains<typename handled_task<Task, Hs...>::effects>)
+        requires(detail::type_set<Es...>::template contains<
+                 typename handled_task<Task, Hs...>::effect_types>)
     {
         return promise_base::handled_task_awaiter<handled_task<Task, Hs...>>{std::move(ht)};
     }
@@ -258,7 +139,7 @@ public:
     auto await_transform(E eff) noexcept -> effect_awaiter<E>
         requires(detail::type_set<Es...>::template contains<E>)
     {
-        return effect_awaiter<E>{std::move(eff)};
+        return effect_awaiter<E>{this, std::move(eff)};
     }
 };
 

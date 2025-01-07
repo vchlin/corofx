@@ -16,6 +16,6 @@ Checks: >
 
 CheckOptions:
   - key: readability-braces-around-statements.ShortStatementLines
-    value: 2
+    value: 1
   - key: readability-implicit-bool-conversion.AllowPointerConditions
     value: true

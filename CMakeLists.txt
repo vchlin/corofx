@@ -14,6 +14,10 @@ endif()
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+include(AddTest)
+
 option(COROFX_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(COROFX_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 
@@ -50,18 +54,22 @@ target_sources(CoroFX
     FILE_SET HEADERS
     BASE_DIRS include
     FILES
+        include/corofx/check.hpp
         include/corofx/config.hpp
         include/corofx/detail/type_id.hpp
         include/corofx/detail/type_set.hpp
-        include/corofx/handler.hpp
+        include/corofx/promise.hpp
         include/corofx/task.hpp
+        include/corofx/trace.hpp
     PRIVATE
+        src/check.cpp
         src/detail/type_id.cpp
         src/detail/type_set.cpp
-        src/handler.cpp
-        src/task.cpp)
+        src/task.cpp
+        src/trace.cpp)
 target_link_libraries(CoroFX PRIVATE CommonConfig)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+    add_subdirectory(example)
     add_subdirectory(test)
 endif()
