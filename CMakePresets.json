@@ -13,7 +13,7 @@
             }
         },
         {
-            "name": "gnu",
+            "name": "gcc",
             "inherits": "default",
             "cacheVariables": {
                 "CMAKE_CXX_COMPILER": "g++"
@@ -21,9 +21,17 @@
         },
         {
             "name": "clang",
-            "inherits": "gnu",
+            "inherits": "gcc",
             "cacheVariables": {
                 "CMAKE_CXX_COMPILER": "clang++"
+            }
+        },
+        {
+            "name": "msvc",
+            "inherets": "default",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "cl.exe"
             }
         }
     ]
