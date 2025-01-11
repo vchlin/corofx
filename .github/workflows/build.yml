@@ -1,0 +1,55 @@
+name: Build
+
+on:
+  push:
+    branches: [ "${{ github.event.repository.default_branch }}" ]
+  pull_request:
+    branches: [ "${{ github.event.repository.default_branch }}" ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        preset:
+          - x64-linux-gcc-release
+          - x64-linux-clang-release
+          - x64-windows-msvc-release
+        include:
+          - preset: x64-linux-gcc-release
+            os: ubuntu-latest
+            build_type: Release
+          - preset: x64-linux-clang-release
+            os: ubuntu-latest
+            build_type: Release
+          - preset: x64-windows-msvc-release
+            os: windows-latest
+            build_type: Release
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set reusable strings
+      id: strings
+      shell: bash
+      run: |
+        cat << EOF >> "$GITHUB_OUTPUT"
+        build-output-dir=${{ github.workspace }}/build
+        EOF
+
+    - name: Configure CMake
+      run: >
+        cmake
+        -S ${{ github.workspace }}
+        -B ${{ steps.strings.outputs.build-output-dir }}
+        --preset=${{ matrix.preset }}
+
+    - name: Build
+      # Note: `--config` needed for multi-config generators such as the Visual Studio ones.
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
+
+    - name: Test
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      run: ctest --build-config ${{ matrix.build_type }}
