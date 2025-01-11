@@ -13,19 +13,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        preset:
-          - x64-linux-gcc-release
-          - x64-linux-clang-release
-          - x64-windows-msvc-release
+        target:
+          - x64-linux-gcc
+          - x64-linux-clang
         include:
-          - preset: x64-linux-gcc-release
+          - target: x64-linux-gcc
             os: ubuntu-latest
+            preset: gcc
             build_type: Release
-          - preset: x64-linux-clang-release
+          - target: x64-linux-clang
             os: ubuntu-latest
-            build_type: Release
-          - preset: x64-windows-msvc-release
-            os: windows-latest
+            preset: clang
             build_type: Release
 
     steps:
