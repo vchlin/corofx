@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ "${{ github.event.repository.default_branch }}" ]
   pull_request:
-    branches: [ "${{ github.event.repository.default_branch }}" ]
+  schedule:
+    - cron: "0 0 * * 0"
 
 jobs:
   build:
