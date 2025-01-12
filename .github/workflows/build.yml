@@ -13,9 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - x64-linux-gcc
-          - x64-linux-clang
+        preset:
+          - gcc
+          - clang
         sanitizer:
           - asan
           - tsan
