@@ -2,7 +2,9 @@ name: Build
 
 on:
   push:
+    branches: [ $default-branch ]
   pull_request:
+    branches: [ $default-branch ]
   schedule:
     - cron: "0 0 * * 0"
 
