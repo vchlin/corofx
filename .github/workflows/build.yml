@@ -16,18 +16,20 @@ jobs:
         target:
           - x64-linux-gcc
           - x64-linux-clang
-        include:
-          - target: x64-linux-gcc
-            os: ubuntu-latest
-            preset: gcc
-            build_type: Release
-          - target: x64-linux-clang
-            os: ubuntu-latest
-            preset: clang
-            build_type: Release
+        sanitizer:
+          - asan
+          - tsan
+        os: [ubuntu-latest]
+        build_type: [Release]
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Set environment variables
+      run: |
+        cat << EOF >> "$GITHUB_ENV"
+        SANITIZER=${{ matrix.sanitizer }}
+        EOF
 
     - name: Set reusable strings
       id: strings
@@ -43,6 +45,7 @@ jobs:
         -S ${{ github.workspace }}
         -B ${{ steps.strings.outputs.build-output-dir }}
         --preset=${{ matrix.preset }}
+        -DCOROFX_ENABLE_${SANITIZER^^}=ON
 
     - name: Build
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
