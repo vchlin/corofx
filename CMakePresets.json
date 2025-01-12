@@ -4,7 +4,6 @@
         {
             "name": "default",
             "hidden": true,
-            "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "BUILD_SHARED_LIBS": true,
@@ -28,7 +27,7 @@
         },
         {
             "name": "msvc",
-            "inherets": "default",
+            "inherits": "default",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_CXX_COMPILER": "cl.exe"
