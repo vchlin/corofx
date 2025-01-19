@@ -1,3 +1,2 @@
-add_executable(generator)
-target_sources(generator PRIVATE generator.cpp)
-target_link_libraries(generator PRIVATE CoroFX CommonConfig)
+corofx_add_example(generator CoroFX CommonConfig)
+corofx_add_example(raise CoroFX CommonConfig)

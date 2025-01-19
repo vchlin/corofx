@@ -16,6 +16,7 @@ include(CMakePackageConfigHelpers)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+include(AddExample)
 include(AddTest)
 
 option(COROFX_ENABLE_ASAN "Enable AddressSanitizer" OFF)
