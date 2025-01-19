@@ -28,6 +28,11 @@ struct contains_impl<S<Ts...>, S<Us...>> {
     static constexpr bool value = (std::is_base_of_v<identity<Us>, set> && ...);
 };
 
+template<typename S, typename S2, typename... SN>
+struct add_impl {
+    using result = add_impl<typename add_impl<S, S2>::result, SN...>::result;
+};
+
 template<typename Head, typename Tail, typename... Us>
 struct subtract_impl {
     using result = Tail;
@@ -36,10 +41,28 @@ struct subtract_impl {
 template<typename... Ts>
 struct type_set {
     template<typename... Us>
+    using add = add_impl<type_set, Us...>::result;
+
+    template<typename... Us>
     using subtract = subtract_impl<type_set<>, type_set<Ts...>, Us...>::result;
+
+    static constexpr bool empty = sizeof...(Ts) == 0;
 
     template<typename U>
     static constexpr bool contains = contains_impl<type_set, U>::value;
+};
+
+template<template<typename...> typename S, typename... Ts>
+struct add_impl<S<Ts...>, S<>> {
+    using result = S<Ts...>;
+};
+
+template<template<typename...> typename S, typename... Ts, typename U, typename... Us>
+struct add_impl<S<Ts...>, S<U, Us...>> {
+    using result = std::conditional_t<
+        S<Ts...>::template contains<U>,
+        add_impl<S<Ts...>, S<Us...>>,
+        add_impl<S<Ts..., U>, S<Us...>>>::result;
 };
 
 // TODO: Double check if template instantiation is lazy enough?
@@ -62,11 +85,5 @@ template<template<typename...> typename S, typename... Head, typename U, typenam
 struct subtract_impl<S<Head...>, S<>, U, Us...> {
     using result = subtract_impl<S<>, S<Head...>, Us...>::result;
 };
-
-// TODO: Move these to a test.
-static_assert(std::is_same_v<type_set<int, char>::subtract<int>, type_set<char>>);
-static_assert(std::is_same_v<type_set<int, char>::subtract<char, int>, type_set<>>);
-static_assert(std::is_same_v<type_set<int, char>::subtract<bool, char>, type_set<int>>);
-static_assert(std::is_same_v<type_set<int, char>::subtract<char, bool>, type_set<int>>);
 
 } // namespace corofx::detail
