@@ -4,16 +4,6 @@ project(CoroFX
     VERSION 0.1
     LANGUAGES CXX)
 
-include(CheckPIESupported)
-check_pie_supported()
-
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    include(CTest)
-endif()
-
-include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
-
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(AddExample)
@@ -22,34 +12,40 @@ include(AddTest)
 option(COROFX_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(COROFX_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 
-add_library(CommonConfig INTERFACE)
-target_compile_definitions(CommonConfig INTERFACE
-    $<$<CXX_COMPILER_ID:Clang,GNU>:
-        $<$<CONFIG:Release>:NDEBUG>
-        _FORTIFY_SOURCE=3
-        _GLIBCXX_ASSERTIONS>)
-target_compile_features(CommonConfig INTERFACE cxx_std_20)
-target_compile_options(CommonConfig INTERFACE
-    $<$<CXX_COMPILER_ID:Clang,GNU>:
-        $<$<CONFIG:Release>:-O2>
-        -Wall -Wconversion -Werror -Wextra -Wformat=2 -Wsign-conversion
-        -fno-rtti -fno-semantic-interposition
-        $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
-        $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>
-        -fstack-clash-protection
-        #-fstrict-flex-arrays=3
-        -fstack-protector-strong
-        -ftrivial-auto-var-init=zero
-        -fvisibility=hidden>)
-target_link_options(CommonConfig INTERFACE
-    $<$<CXX_COMPILER_ID:Clang,GNU>:
-        $<$<CONFIG:Release>:-s>
-        $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
-        $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>
-        "LINKER:-z,nodlopen,-z,noexecstack,-z,now,-z,relro" >)
+include(CheckPIESupported)
+check_pie_supported()
+
+add_library(PrivateConfig INTERFACE)
+if(PROJECT_IS_TOP_LEVEL)
+    target_compile_definitions(PrivateConfig INTERFACE
+        $<$<CXX_COMPILER_ID:Clang,GNU>:
+            $<$<CONFIG:Release>:NDEBUG>
+            _FORTIFY_SOURCE=3
+            _GLIBCXX_ASSERTIONS>)
+    target_compile_options(PrivateConfig INTERFACE
+        $<$<CXX_COMPILER_ID:Clang,GNU>:
+            $<$<CONFIG:Release>:-O2>
+            -Wall -Wconversion -Werror -Wextra -Wformat=2 -Wsign-conversion
+            -fno-rtti -fno-semantic-interposition
+            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
+            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>
+            -fstack-clash-protection
+            #-fstrict-flex-arrays=3
+            -fstack-protector-strong
+            -ftrivial-auto-var-init=zero
+            -fvisibility=hidden>)
+    target_link_options(PrivateConfig INTERFACE
+        $<$<CXX_COMPILER_ID:Clang,GNU>:
+            $<$<CONFIG:Release>:-s>
+            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
+            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>
+            "LINKER:-z,nodlopen,-z,noexecstack,-z,now,-z,relro" >)
+endif()
 
 add_library(CoroFX)
+add_library(CoroFX::CoroFX ALIAS CoroFX)
 set_target_properties(CoroFX PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_compile_features(CoroFX PUBLIC cxx_std_20)
 target_sources(CoroFX
     PUBLIC
     FILE_SET HEADERS
@@ -68,9 +64,41 @@ target_sources(CoroFX
         src/detail/type_set.cpp
         src/task.cpp
         src/trace.cpp)
-target_link_libraries(CoroFX PRIVATE CommonConfig)
+target_link_libraries(CoroFX PRIVATE PrivateConfig)
 
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
-    add_subdirectory(example)
-    add_subdirectory(test)
+if(PROJECT_IS_TOP_LEVEL)
+    include(CTest)
+    if(BUILD_TESTING)
+        add_subdirectory(example)
+        add_subdirectory(test)
+    endif()
+
+    include(GNUInstallDirs)
+    include(CMakePackageConfigHelpers)
+
+    configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/CoroFXConfig.cmake"
+        INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/CoroFX")
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/CoroFXConfigVersion.cmake"
+        VERSION ${PACKAGE_VERSION}
+        COMPATIBILITY SameMajorVersion)
+    install(
+        TARGETS CoroFX
+        EXPORT CoroFXTargets
+        FILE_SET HEADERS
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+    install(
+        EXPORT CoroFXTargets
+        FILE CoroFXTargets.cmake
+        NAMESPACE CoroFX::
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/CoroFX")
+    install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/CoroFXConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/CoroFXConfigVersion.cmake"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/CoroFX")
 endif()

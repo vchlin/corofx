@@ -11,11 +11,9 @@ corofx is implemented using standard C++20 features only without external depend
 - Typed effect handling: Allowed effects in each scope are checked at compile time.
 - Resuming (one-shot): Allows resuming back to the call site with a result.
 
-## Examples
+## An Example
 
-### Generator
-
-An example adapted from [Koka](https://koka-lang.github.io/koka/doc/book.html#why-handlers):
+A generator example adapted from [Koka](https://koka-lang.github.io/koka/doc/book.html#why-handlers):
 ```C++
 #include "corofx/task.hpp"
 #include "corofx/trace.hpp"
@@ -57,7 +55,38 @@ yielded 2
 yielded 3
 ```
 
+## Requirements
+
+A compiler with C++20 support is required. While older versions may work, the following compiler versions or later are recommended for best results:
+
+| Compiler | Version |
+| -------- | ------- |
+| GCC      | 13.3.0  |
+| Clang    | 18.1.3  |
+
+## Usage
+
+### FetchContent
+```CMake
+cmake_minimum_required(VERSION 3.28)
+
+project(MyProj
+    LANGUAGES CXX)
+
+include(FetchContent)
+FetchContent_Declare(
+    corofx
+    GIT_REPOSITORY https://github.com/vchlin/corofx.git
+    GIT_TAG main
+    GIT_SHALLOW ON
+    FIND_PACKAGE_ARGS NAMES CoroFX
+)
+FetchContent_MakeAvailable(corofx)
+
+add_executable(MyExe main.cpp)
+target_link_libraries(MyExe CoroFX::CoroFX)
+```
+
 ## Limitations
 
 - Only one-shot handlers are supported.
-- Limited type inference because a C++ coroutine must name its return type.
