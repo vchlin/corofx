@@ -1,2 +1,2 @@
-corofx_add_example(generator CoroFX PrivateConfig)
-corofx_add_example(raise CoroFX PrivateConfig)
+corofx_add_example(generator CoroFX)
+corofx_add_example(raise CoroFX)
