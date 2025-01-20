@@ -15,33 +15,6 @@ option(COROFX_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 include(CheckPIESupported)
 check_pie_supported()
 
-add_library(PrivateConfig INTERFACE)
-if(PROJECT_IS_TOP_LEVEL)
-    target_compile_definitions(PrivateConfig INTERFACE
-        $<$<CXX_COMPILER_ID:Clang,GNU>:
-            $<$<CONFIG:Release>:NDEBUG>
-            _FORTIFY_SOURCE=3
-            _GLIBCXX_ASSERTIONS>)
-    target_compile_options(PrivateConfig INTERFACE
-        $<$<CXX_COMPILER_ID:Clang,GNU>:
-            $<$<CONFIG:Release>:-O2>
-            -Wall -Wconversion -Werror -Wextra -Wformat=2 -Wsign-conversion
-            -fno-rtti -fno-semantic-interposition
-            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
-            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>
-            -fstack-clash-protection
-            #-fstrict-flex-arrays=3
-            -fstack-protector-strong
-            -ftrivial-auto-var-init=zero
-            -fvisibility=hidden>)
-    target_link_options(PrivateConfig INTERFACE
-        $<$<CXX_COMPILER_ID:Clang,GNU>:
-            $<$<CONFIG:Release>:-s>
-            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
-            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>
-            "LINKER:-z,nodlopen,-z,noexecstack,-z,now,-z,relro" >)
-endif()
-
 add_library(CoroFX)
 add_library(CoroFX::CoroFX ALIAS CoroFX)
 set_target_properties(CoroFX PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
@@ -64,7 +37,32 @@ target_sources(CoroFX
         src/detail/type_set.cpp
         src/task.cpp
         src/trace.cpp)
-target_link_libraries(CoroFX PRIVATE PrivateConfig)
+
+if(PROJECT_IS_TOP_LEVEL)
+    target_compile_definitions(CoroFX PUBLIC
+        $<$<CXX_COMPILER_ID:Clang,GNU>:
+            $<$<CONFIG:Release>:NDEBUG>
+            _FORTIFY_SOURCE=3
+            _GLIBCXX_ASSERTIONS>)
+    target_compile_options(CoroFX INTERFACE
+        $<$<CXX_COMPILER_ID:Clang,GNU>:
+            $<$<CONFIG:Release>:-O2>
+            -Wall -Wconversion -Werror -Wextra -Wformat=2 -Wsign-conversion
+            -fno-rtti -fno-semantic-interposition
+            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
+            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>
+            -fstack-clash-protection
+            #-fstrict-flex-arrays=3
+            -fstack-protector-strong
+            -ftrivial-auto-var-init=zero
+            -fvisibility=hidden>)
+    target_link_options(CoroFX INTERFACE
+        $<$<CXX_COMPILER_ID:Clang,GNU>:
+            $<$<CONFIG:Release>:-s>
+            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
+            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>
+            "LINKER:-z,nodlopen,-z,noexecstack,-z,now,-z,relro" >)
+endif()
 
 if(PROJECT_IS_TOP_LEVEL)
     include(CTest)
