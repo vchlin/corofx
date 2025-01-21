@@ -4,56 +4,71 @@
 
 Algebraic effects for C++20 using coroutines.
 
-corofx is implemented using standard C++20 features only without external dependencies.
+## Overview
+
+corofx is a library for programming with algebraic effects. It is implemented using standard C++20 features only without external dependencies. The effect semantics are largely inspired by the [Koka](https://github.com/koka-lang/koka) language.
+
+Some use cases of effects include dependency injection, emulating checked exceptions, etc.
 
 ## Features
 
-- Typed effect handling: Allowed effects in each scope are checked at compile time.
-- Resuming (one-shot): Allows resuming back to the call site with a result.
+### Typed Effect Handling
 
-## An Example
+Allowed effects in each scope are checked at compile time.
 
-A generator example adapted from [Koka](https://koka-lang.github.io/koka/doc/book.html#why-handlers):
 ```C++
-#include "corofx/task.hpp"
-#include "corofx/trace.hpp"
+struct foo {
+    using return_type = int;
+};
 
-#include <vector>
+struct bar {
+    using return_type = bool;
+};
 
-using namespace corofx;
+struct baz {
+    using return_type = char;
+};
 
-// Example adapted from https://koka-lang.github.io/koka/doc/book.html#why-handlers.
+auto do_something() -> task<int, foo, baz> {
+    //                           ^~~~~~~~ Allowed effects.
+    auto x = co_await foo{}; // Okay.
+    auto y = co_await bar{}; // Error: Cannot perform a `bar` effect in this context.
+    auto z = co_await baz{}; // Okay.
+    co_return x + y + z;
+}
+```
+
+### Resuming with a Result
+
+An effect handler can tail-resume (one-shot) back to the call site with a result. This library makes use of [symmetric transfer](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0913r0.html), allowing repeated effect invocations without stack overflow.
+
+```C++
+constexpr auto large_value = 1'000'000;
+
 struct yield {
     using return_type = bool;
 
     int i{};
 };
 
-auto traverse(std::vector<int> xs) -> task<void, yield> {
-    for (auto x : xs) {
-        if (!co_await yield{x}) break;
+auto traverse() -> task<void, yield> {
+    for (auto i = 0;; ++i) {
+        if (!co_await yield{i}) break;
     }
     co_return {};
 }
 
 auto print_elems() -> task<void> {
-    co_await traverse(std::vector{1, 2, 3, 4})
+    co_await traverse()
         .with(make_handler<yield>([](auto&& y, auto&& resume) -> task<void> {
-            trace("yielded ", y.i);
-            co_return resume(y.i <= 2);
+            std::cout << "yielded " << y.i << '\n';
+            co_return resume(y.i < large_value);
         }));
     co_return {};
 }
-
-auto main() -> int { print_elems()(); }
 ```
 
-Output:
-```
-yielded 1
-yielded 2
-yielded 3
-```
+See [examples](examples) for more.
 
 ## Requirements
 
@@ -66,7 +81,7 @@ A compiler with C++20 support is required. While older versions may work, the fo
 
 ## Usage
 
-### FetchContent
+### CMake with FetchContent
 ```CMake
 cmake_minimum_required(VERSION 3.28)
 
