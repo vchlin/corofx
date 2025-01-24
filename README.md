@@ -6,69 +6,81 @@ Algebraic effects for C++20 using coroutines.
 
 ## Overview
 
-corofx is a library for programming with algebraic effects. It is implemented using standard C++20 features only without external dependencies. The effect semantics are largely inspired by the [Koka](https://github.com/koka-lang/koka) language.
+corofx is a library for programming with algebraic effects. It uses standard C++20 features only, without external dependencies. The effect semantics are largely inspired by the [Koka](https://github.com/koka-lang/koka) language.
 
-Some use cases of effects include dependency injection, emulating checked exceptions, etc.
+### Why Algebraic Effects?
 
-## Features
+A useful computer program often needs to perform side effects, such as I/O. However, unconstrained side effects make reasoning about a program's behavior difficult. A typed effect system segregates pure and effectful computations. While this may resemble checked exceptions, there is a twist: an effect handler can resume back to the call site with a result. This provides several key benefits:
+- Effects and their handling logic can be decoupled like dependency injection, increasing program composability and modularity.
+- Interesting control flow structures, such as generators, can be expressed without special language constructs.
+- Effect typing enables compile-time checking of control exhaustiveness, providing stronger guarantees of program correctness.
 
-### Typed Effect Handling
+### Why Coroutines?
 
-Allowed effects in each scope are checked at compile time.
+[Coroutines](https://en.cppreference.com/w/cpp/language/coroutines) in C++ provide many customization points, allowing precise control over the behavior of the generated coroutine state machines. This makes them suitable as building blocks for an effect system. Since coroutines are a language feature, we can express interesting control flow structures using lightweight, standard C++ syntax.
 
+> ![NOTE]
+> Coroutines in C++ are state machines. They can be resumed only once, so only one-shot effect handlers are supported.
+
+## Effect Handling
+
+Here is a [generator example](examples/yield.cpp) adapted from [Koka](https://koka-lang.github.io/koka/doc/book.html#why-handlers):
 ```C++
-struct foo {
-    using return_type = int;
-};
+#include "corofx/task.hpp"
 
-struct bar {
-    using return_type = bool;
-};
+#include <iostream>
+#include <vector>
 
-struct baz {
-    using return_type = char;
-};
+using namespace corofx;
 
-auto do_something() -> task<int, foo, baz> {
-    //                           ^~~~~~~~ Allowed effects.
-    auto x = co_await foo{}; // Okay.
-    auto y = co_await bar{}; // Error: Cannot perform a `bar` effect in this context.
-    auto z = co_await baz{}; // Okay.
-    co_return x + y + z;
-}
-```
-
-### Resuming with a Result
-
-An effect handler can tail-resume (one-shot) back to the call site with a result. This library makes use of [symmetric transfer](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0913r0.html), allowing repeated effect invocations without stack overflow.
-
-```C++
-constexpr auto large_value = 1'000'000;
-
+// Example adapted from https://koka-lang.github.io/koka/doc/book.html#why-handlers.
 struct yield {
     using return_type = bool;
 
     int i{};
 };
 
-auto traverse() -> task<void, yield> {
-    for (auto i = 0;; ++i) {
-        if (!co_await yield{i}) break;
+auto traverse(std::vector<int> xs) -> task<void, yield> {
+    for (auto x : xs) {
+        if (!co_await yield{x}) break;
     }
     co_return {};
 }
 
 auto print_elems() -> task<void> {
-    co_await traverse()
+    co_await traverse(std::vector{1, 2, 3, 4})
         .with(make_handler<yield>([](auto&& y, auto&& resume) -> task<void> {
-            std::cout << "yielded " << y.i << '\n';
-            co_return resume(y.i < large_value);
+            std::cout << "yielded " << y.i << std::endl;
+            co_return resume(y.i <= 2);
         }));
     co_return {};
 }
+
+auto main() -> int { print_elems()(); }
+```
+Here, the `yield` effect is defined as a simple `struct` with an associated `return_type` of `bool`.
+
+`traverse` is a coroutine function that returns `task<void, yield>`. This describes an effectful computation that returns `void` on completion and may produce the `yield` effect.
+
+`print_elems` provides a handler for `yield` when calling `traverse`. This discharges the `yield` effect, so `print_elems` can simply return `task<void>` (a pure[^1] computation that returns `void`).
+
+Finally, the `main` function simply calls `print_elems`, as it does not produce any effects and therefore does not need effect handlers.
+
+[^1]: In this example, the function isn't technically pure as it still prints to `stdout`. However, we can define a `console` effect. There is nothing stopping the user from bypassing it and doing arbitrary I/O though.
+
+> ![NOTE]
+> A handler can also produce additional effects. The caller must handle them locally or propagate them up.
+
+When run, this program produces the following output:
+```
+yielded 1
+yielded 2
+yielded 3
 ```
 
-See [examples](examples) for more.
+## Examples
+
+See [examples](examples) for more interesting use cases of effects and handlers.
 
 ## Requirements
 
@@ -101,7 +113,3 @@ FetchContent_MakeAvailable(corofx)
 add_executable(MyExe main.cpp)
 target_link_libraries(MyExe CoroFX::CoroFX)
 ```
-
-## Limitations
-
-- Only one-shot handlers are supported.
