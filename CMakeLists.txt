@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(CoroFX
-    VERSION 0.1
+    VERSION 0.1.0
     LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -67,7 +67,7 @@ endif()
 if(PROJECT_IS_TOP_LEVEL)
     include(CTest)
     if(BUILD_TESTING)
-        add_subdirectory(example)
+        add_subdirectory(examples)
         add_subdirectory(test)
     endif()
 

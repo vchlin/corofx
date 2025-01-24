@@ -1,6 +1,6 @@
 #include "corofx/task.hpp"
-#include "corofx/trace.hpp"
 
+#include <iostream>
 #include <string>
 
 using namespace corofx;
@@ -18,16 +18,16 @@ auto safe_divide(int x, int y) -> task<int, raise> {
 }
 
 auto raise_const() -> task<int> {
-    auto add_divide = []() -> task<int, raise> {
+    auto divide_add = []() -> task<int, raise> {
         co_return 8 + co_await safe_divide(1, 0); // NOLINT
     };
-    co_return co_await add_divide().with(make_handler<raise>([](auto&& r, auto&&) -> task<int> {
-        trace("error: ", r.msg);
+    co_return co_await divide_add().with(make_handler<raise>([](auto&& r, auto&&) -> task<int> {
+        std::cout << "error: " << r.msg << std::endl;
         co_return 42; // NOLINT
     }));
 }
 
 auto main() -> int {
     auto x = raise_const()();
-    trace("x: ", x);
+    std::cout << "x: " << x << std::endl;
 }
