@@ -58,18 +58,19 @@ auto print_elems() -> task<void> {
 
 auto main() -> int { print_elems()(); }
 ```
-Here, the `yield` effect is defined as a simple `struct` with an associated `return_type` of `bool`.
+
+The `yield` effect is defined as a simple `struct` with an associated `return_type` of `bool`.
 
 `traverse` is a coroutine function that returns `task<void, yield>`. This describes an effectful computation that returns `void` on completion and may produce the `yield` effect.
 
 `print_elems` provides a handler for `yield` when calling `traverse`. This discharges the `yield` effect, so `print_elems` can simply return `task<void>` (a pure[^1] computation that returns `void`).
 
-Finally, the `main` function simply calls `print_elems`, as it does not produce any effects and therefore does not need effect handlers.
+Finally, the `main` function simply calls the `print_elems` coroutine, as it does not produce any effects and therefore does not need effect handlers.
 
-[^1]: In this example, the function isn't technically pure since it still prints to `stdout`. However, we can define a `console` effect and handle it accordingly. Note that there is nothing stopping the user from bypassing it and performing arbitrary I/O.
+[^1]: In this example, the function isn't technically pure since it still prints to `stdout`. However, we can define a `console` effect and handle it accordingly. Note that there is nothing preventing the user from bypassing it and performing arbitrary I/O directly.
 
 > [!NOTE]
-> A handler can also produce additional effects. The caller must handle them locally or propagate them up.
+> A handler can also produce additional effects, which must be propagated up.
 
 When run, this program produces the following output:
 ```
