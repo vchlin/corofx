@@ -2,18 +2,20 @@
 
 [![Build](https://github.com/vchlin/corofx/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/vchlin/corofx/actions/workflows/build.yml?query=branch%3Amain)
 
-Algebraic effects for C++20 using coroutines.
+Typed effect handlers for C++20 using coroutines.
 
 ## Overview
 
-corofx is a library for programming with algebraic effects. It uses standard C++20 features only, without external dependencies. The effect semantics are largely inspired by the [Koka](https://github.com/koka-lang/koka) language.
+corofx is a library for programming with effects and handlers. It uses standard C++20 features only, without external dependencies. The effect semantics are largely inspired by the [Koka](https://github.com/koka-lang/koka) language.
 
-### Why Algebraic Effects?
+### Why Effects?
 
-A useful computer program often needs to perform side effects, such as I/O. However, unconstrained side effects make reasoning about a program's behavior difficult. A typed effect system segregates pure and effectful computations. While this may resemble checked exceptions, there is a twist: an effect handler can resume back to the call site with a result. This provides several key benefits:
-- Effects and their handling logic can be decoupled like dependency injection, increasing program composability and modularity.
-- Interesting control flow structures, such as generators, can be expressed without special language constructs.
-- Effect typing enables compile-time checking of control exhaustiveness, providing stronger guarantees of program correctness.
+A useful computer program often needs to perform side effects like I/O operations. However, unrestricted side effects make program behavior difficult to reason about. Effect typing helps solve this by statically tracking which effects a function can perform, creating a clear separation between pure and effectful computations.
+
+While this concept resembles checked exception specifications, effect handlers make it particularly powerful. Effect handling generalizes exception handling by allowing handlers to resume execution at the call site with a result. This provides some key benefits:
+
+- Similar to dependency injection, effects and their handling logic can be decoupled, improving program modularity and composability.
+- Interesting control flow patterns like generators can be implemented without requiring special language features.
 
 ### Why Coroutines?
 
@@ -63,14 +65,19 @@ The `yield` effect is defined as a simple `struct` with an associated `return_ty
 
 `traverse` is a coroutine function that returns `task<void, yield>`. This describes an effectful computation that returns `void` on completion and may produce the `yield` effect.
 
-`print_elems` provides a handler for `yield` when calling `traverse`. This discharges the `yield` effect, so `print_elems` can simply return `task<void>` (a pure[^1] computation that returns `void`).
+`print_elems` provides a handler for `yield` when calling `traverse`. The handler transfers control back to the call site in `traverse` by performing a tail resumption.
 
-Finally, the `main` function simply calls the `print_elems` coroutine, as it does not produce any effects and therefore does not need effect handlers.
+> [!TIP]
+> This library makes extensive use of [symmetric transfer](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0913r0.html), allowing repeated effect invocations without causing stack overflow.
+
+Since the `yield` effect is handled, `print_elems` simply returns `task<void>` (a pure[^1] computation that returns `void`).
 
 [^1]: In this example, the function isn't technically pure since it still prints to `stdout`. However, we can define a `console` effect and handle it accordingly. Note that there is nothing preventing the user from bypassing it and performing arbitrary I/O directly.
 
-> [!NOTE]
-> A handler can also produce additional effects, which must be propagated up.
+Finally, the `main` function simply calls the `print_elems` coroutine, as it does not produce any effects and therefore does not need effect handlers.
+
+> [!TIP]
+> The effects allowed in each `task` are checked at compile time, ensuring that all effects are handled at some level. Additionally, a handler can produce its own effects, which must be propagated upward.
 
 When run, this program produces the following output:
 ```

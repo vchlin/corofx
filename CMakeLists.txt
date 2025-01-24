@@ -52,8 +52,8 @@ if(PROJECT_IS_TOP_LEVEL)
             $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
             $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>
             -fstack-clash-protection
-            #-fstrict-flex-arrays=3
             -fstack-protector-strong
+            -fstrict-flex-arrays=3
             -ftrivial-auto-var-init=zero
             -fvisibility=hidden>)
     target_link_options(CoroFX INTERFACE

@@ -4,11 +4,6 @@
 
 namespace corofx::detail {
 
-template<typename T>
-struct identity {
-    using type = T;
-};
-
 template<typename S, typename U>
 struct contains_impl {
     static constexpr bool value = false;
@@ -16,16 +11,16 @@ struct contains_impl {
 
 template<template<typename...> typename S, typename... Ts, typename U>
 struct contains_impl<S<Ts...>, U> {
-    struct set : identity<Ts>... {};
+    struct set : std::type_identity<Ts>... {};
 
-    static constexpr bool value = std::is_base_of_v<identity<U>, set>;
+    static constexpr bool value = std::is_base_of_v<std::type_identity<U>, set>;
 };
 
 template<template<typename...> typename S, typename... Ts, typename... Us>
 struct contains_impl<S<Ts...>, S<Us...>> {
-    struct set : identity<Ts>... {};
+    struct set : std::type_identity<Ts>... {};
 
-    static constexpr bool value = (std::is_base_of_v<identity<Us>, set> && ...);
+    static constexpr bool value = (std::is_base_of_v<std::type_identity<Us>, set> && ...);
 };
 
 template<typename S, typename S2, typename... SN>

@@ -21,10 +21,6 @@ class promise_impl;
 class handler_list;
 
 class resumer_tag {
-    template<typename E>
-    friend class resumer;
-    friend promise_base;
-
 public:
     resumer_tag(resumer_tag const&) = delete;
     resumer_tag(resumer_tag&&) = delete;
@@ -33,6 +29,10 @@ public:
     auto operator=(resumer_tag&&) -> resumer_tag& = delete;
 
 private:
+    template<typename E>
+    friend class resumer;
+    friend promise_base;
+
     explicit resumer_tag(promise_base& resume) noexcept : resume_{resume} {}
 
     promise_base& resume_;
@@ -43,9 +43,6 @@ class effect_awaiter;
 
 template<typename E>
 class resumer {
-    template<typename E2>
-    friend class effect_awaiter;
-
 public:
     resumer(resumer const&) = delete;
     resumer(resumer&&) = delete;
@@ -60,6 +57,9 @@ public:
     }
 
 private:
+    template<typename E2>
+    friend class effect_awaiter;
+
     explicit resumer(promise_base& resume, effect_awaiter<E>& effect) noexcept
         : resume_{resume}, effect_{effect} {}
 
@@ -69,17 +69,6 @@ private:
 
 // Base promise type.
 class promise_base {
-    // TODO: Remove friends?
-    template<typename T>
-    friend class promise_impl;
-    template<typename E, typename F>
-    friend class handler;
-    template<typename Task, typename... Hs>
-    friend class handled_task;
-    template<typename E>
-    friend class effect_awaiter;
-    friend class untyped_task;
-
 public:
     struct final_awaiter : std::suspend_always {
         template<std::derived_from<promise_base> U>
@@ -124,6 +113,17 @@ protected:
     }
 
 private:
+    // TODO: Remove friends?
+    template<typename T>
+    friend class promise_impl;
+    template<typename E, typename F>
+    friend class handler;
+    template<typename Task, typename... Hs>
+    friend class handled_task;
+    template<typename E>
+    friend class effect_awaiter;
+    friend class untyped_task;
+
     auto set_cont(promise_base& cont) noexcept -> std::coroutine_handle<> {
         cont_ = &cont;
         return frame_;
@@ -138,9 +138,6 @@ private:
 };
 
 class untyped_task {
-    template<typename E>
-    friend class effect_awaiter;
-
 public:
     untyped_task() noexcept = default;
     explicit untyped_task(promise_base* p) noexcept : promise_{p} {}
@@ -161,6 +158,9 @@ public:
     explicit operator bool() const noexcept { return promise_ != nullptr; }
 
 private:
+    template<typename E>
+    friend class effect_awaiter;
+
     auto swap(untyped_task& that) noexcept -> void {
         using std::swap;
         swap(promise_, that.promise_);

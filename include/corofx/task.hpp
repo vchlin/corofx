@@ -11,11 +11,6 @@ namespace corofx {
 
 template<typename Task, typename... Hs>
 class handled_task {
-    // TODO: Remove friends?
-    template<typename U, std::movable... Gs>
-    friend class task;
-    friend promise_base;
-
 public:
     using task_type = Task;
     using value_type = task_type::value_type;
@@ -37,6 +32,11 @@ public:
     }
 
 private:
+    // TODO: Remove friends?
+    template<typename U, std::movable... Gs>
+    friend class task;
+    friend promise_base;
+
     task_type task_;
     handler_list_impl<Hs...> handlers_;
 };
@@ -45,15 +45,6 @@ private:
 template<typename T, std::movable... Es>
 // TODO: Check if `Es...` are unique.
 class task {
-    template<typename U, std::movable... Gs>
-    friend class task;
-    // TODO: Remove friend?
-    friend promise_base;
-    template<typename E, typename F>
-    friend class handler;
-    template<typename Task, typename... Hs>
-    friend class handled_task;
-
 public:
     class promise_type;
     using handle_type = std::coroutine_handle<promise_type>;
@@ -94,6 +85,15 @@ public:
     }
 
 private:
+    template<typename U, std::movable... Gs>
+    friend class task;
+    // TODO: Remove friend?
+    friend promise_base;
+    template<typename E, typename F>
+    friend class handler;
+    template<typename Task, typename... Hs>
+    friend class handled_task;
+
     explicit task(handle_type h) noexcept : frame_{h} {}
 
     auto swap(task& that) noexcept -> void {
