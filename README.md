@@ -2,29 +2,30 @@
 
 [![CI](https://github.com/vchlin/corofx/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vchlin/corofx/actions/workflows/ci.yml?query=branch%3Amain)
 
-Algebraic effects for C++20 using coroutines.
+Typed effect handlers for C++20 using coroutines.
 
 ## Overview
 
-corofx is a library for programming with algebraic effects. It uses standard C++20 features only, without external dependencies. The effect semantics are largely inspired by the [Koka](https://github.com/koka-lang/koka) language.
+corofx is a library for programming with effects and handlers. It uses standard C++20 features only, without external dependencies. The effect semantics are largely inspired by the [Koka](https://github.com/koka-lang/koka) language.
 
-### Why Algebraic Effects?
+### Why Effects?
 
-A useful computer program often needs to perform side effects, such as I/O. However, unconstrained side effects make reasoning about a program's behavior difficult. A typed effect system segregates pure and effectful computations. While this may resemble checked exceptions, there is a twist: an effect handler can resume back to the call site with a result. This provides several key benefits:
-- Effects and their handling logic can be decoupled like dependency injection, increasing program composability and modularity.
-- Interesting control flow structures, such as generators, can be expressed without special language constructs.
-- Effect typing enables compile-time checking of control exhaustiveness, providing stronger guarantees of program correctness.
+A useful computer program often needs to perform side effects like I/O operations. However, unrestricted side effects make program behavior difficult to reason about. Effect typing solves this by statically tracking which effects a function can perform, creating a clear separation between pure and effectful computations.
+
+While this concept resembles checked exception specifications, effect handlers make it particularly powerful. Effect handling generalizes exception handling by allowing handlers to resume execution at the call site with a result. This provides some key benefits:
+- Similar to dependency injection, effects and their handling logic can be decoupled, improving program modularity and composability.
+- Interesting control flow patterns like generators can be implemented without language extensions.
 
 ### Why Coroutines?
 
-[Coroutines](https://en.cppreference.com/w/cpp/language/coroutines) in C++ provide many customization points, allowing precise control over the behavior of the generated coroutine state machines. This makes them suitable as building blocks for an effect system. Since coroutines are a language feature, we can express interesting control flow structures using lightweight, standard C++ syntax.
+C++ [coroutines](https://en.cppreference.com/w/cpp/language/coroutines) provide an ideal foundation for building an effect system. Their extensive customization points enable precise control over execution flow. By leveraging coroutines as a native language feature, we can express complex control patterns using standard C++ syntax.
 
 > [!NOTE]
-> Coroutines in C++ are state machines. They can be resumed only once, so only one-shot effect handlers are supported.
+> C++ coroutines are state machines that can be resumed only once. As a result, this library supports only one-shot effect handlers.
 
 ## Effect Handling
 
-Here is a [generator example](examples/yield.cpp) adapted from [Koka](https://koka-lang.github.io/koka/doc/book.html#why-handlers):
+Here is a motivating [example](examples/yield.cpp) adapted from [Koka](https://koka-lang.github.io/koka/doc/book.html#why-handlers):
 ```C++
 #include "corofx/task.hpp"
 
@@ -59,18 +60,19 @@ auto print_elems() -> task<void> {
 auto main() -> int { print_elems()(); }
 ```
 
-The `yield` effect is defined as a simple `struct` with an associated `return_type` of `bool`.
+The key components in this example are:
+- Effect Definition: The `yield` effect is a simple `struct` with an `int` payload and a `bool` return type.
+- Effect Producer: `traverse` returns `task<void, yield>`, indicating it's an effectful computation that:
+    - May produce the `yield` effect
+    - Returns `void` when complete
+- Effect Handler: `print_elems` discharges the `yield` effect from `traverse` with a handler, which:
+    - Produces no effects[^1]
+    - Prints each yielded value
+    - Passes a `bool` and transfers control back to the effect producer via tail resumption
 
-`traverse` is a coroutine function that returns `task<void, yield>`. This describes an effectful computation that returns `void` on completion and may produce the `yield` effect.
+After handling `yield`, `print_elems` returns `task<void>` - a pure[^1] computation returning `void`. Finally, `main` simply calls the `print_elems` coroutine since no effects remain to be handled.
 
-`print_elems` provides a handler for `yield` when calling `traverse`. This discharges the `yield` effect, so `print_elems` can simply return `task<void>` (a pure[^1] computation that returns `void`).
-
-Finally, the `main` function simply calls the `print_elems` coroutine, as it does not produce any effects and therefore does not need effect handlers.
-
-[^1]: In this example, the function isn't technically pure since it still prints to `stdout`. However, we can define a `console` effect and handle it accordingly. Note that there is nothing preventing the user from bypassing it and performing arbitrary I/O directly.
-
-> [!NOTE]
-> A handler can also produce additional effects, which must be propagated up.
+[^1]: This example still performs I/O by printing to `stdout`. While we could define a `console` effect to track and handle such operations, C++ doesn't prevent direct I/O operations outside our effect system.
 
 When run, this program produces the following output:
 ```
@@ -79,22 +81,29 @@ yielded 2
 yielded 3
 ```
 
-## Examples
+> [!TIP]
+> Effect types are checked at compile-time, ensuring proper handling throughout the call chain.
+
+> [!TIP]
+> The library leverages [symmetric transfer](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0913r0.html) to handle repeated effect invocations without stack overflow.
 
 See [examples](examples) for more interesting use cases of effects and handlers.
 
-## Requirements
+## Using This Library
 
-A compiler with C++20 support is required. While older versions may work, the following compiler versions or later are recommended for best results:
+### Requirements
+
+A compiler with C++20 support is required. While older compiler versions may work, the following versions are recommended for best results:
 
 | Compiler | Version |
 | -------- | ------- |
 | GCC      | 13.3.0  |
 | Clang    | 18.1.3  |
 
-## Usage
+### Getting Started
 
-### CMake with FetchContent
+To get started with this library, use CMake with `FetchContent`:
+
 ```CMake
 cmake_minimum_required(VERSION 3.28)
 

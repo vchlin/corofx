@@ -1,5 +1,6 @@
 corofx_add_test(test_chained CoroFX)
 corofx_add_test(test_combined CoroFX)
+corofx_add_test(test_move CoroFX)
 corofx_add_test(test_nested CoroFX)
 # GCC 13.3.0 seems to have some issues with symmetric transfer when sanitizers are enabled.
 # Likely https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100897.

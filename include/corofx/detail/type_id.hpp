@@ -13,6 +13,6 @@ using type_id = type_tag const*;
 
 // TODO: Don't use if RTTI is already enabled?
 template<typename T>
-inline constexpr type_id type_id_for = &type_id_impl<T>::tag;
+constexpr type_id type_id_for = &type_id_impl<T>::tag;
 
 } // namespace corofx

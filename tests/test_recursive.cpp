@@ -26,5 +26,5 @@ auto main() -> int {
         ++i;
         co_return resume(b.x);
     }));
-    check(res() == large_value);
+    check(std::move(res)() == large_value);
 }
