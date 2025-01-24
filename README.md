@@ -19,7 +19,7 @@ A useful computer program often needs to perform side effects, such as I/O. Howe
 
 [Coroutines](https://en.cppreference.com/w/cpp/language/coroutines) in C++ provide many customization points, allowing precise control over the behavior of the generated coroutine state machines. This makes them suitable as building blocks for an effect system. Since coroutines are a language feature, we can express interesting control flow structures using lightweight, standard C++ syntax.
 
-> ![NOTE]
+> [!NOTE]
 > Coroutines in C++ are state machines. They can be resumed only once, so only one-shot effect handlers are supported.
 
 ## Effect Handling
@@ -66,9 +66,9 @@ Here, the `yield` effect is defined as a simple `struct` with an associated `ret
 
 Finally, the `main` function simply calls `print_elems`, as it does not produce any effects and therefore does not need effect handlers.
 
-[^1]: In this example, the function isn't technically pure as it still prints to `stdout`. However, we can define a `console` effect. There is nothing stopping the user from bypassing it and doing arbitrary I/O though.
+[^1]: In this example, the function isn't technically pure since it still prints to `stdout`. However, we can define a `console` effect and handle it accordingly. Note that there is nothing stopping the user from bypassing it and performing arbitrary I/O.
 
-> ![NOTE]
+> [!NOTE]
 > A handler can also produce additional effects. The caller must handle them locally or propagate them up.
 
 When run, this program produces the following output:
