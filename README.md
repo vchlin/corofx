@@ -70,7 +70,7 @@ The key components in this example are:
     - Prints each yielded value
     - Passes a `bool` and transfers control back to the effect producer via tail resumption
 
-After handling `yield`, `print_elems` returns `task<void>` - a pure[^1] computation returning `void`. Finally, `main` simply calls the `print_elems` coroutine since no effects remain to be handled.
+After handling `yield`, `print_elems` returns `task<void>` - a pure computation returning `void`. Finally, `main` simply calls the `print_elems` coroutine since no effects remain to be handled.
 
 [^1]: This example still performs I/O by printing to `stdout`. While we could define a `console` effect to track and handle such operations, C++ doesn't prevent direct I/O operations outside our effect system.
 
