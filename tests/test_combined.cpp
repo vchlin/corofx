@@ -51,5 +51,5 @@ auto main() -> int {
             check(b.x == marker1);
             co_return resume(marker0);
         }));
-    check(res() == marker2);
+    check(std::move(res)() == marker2);
 }

@@ -4,7 +4,6 @@
 #include "detail/type_id.hpp"
 
 #include <coroutine>
-#include <exception>
 #include <optional>
 #include <tuple>
 #include <utility>
@@ -21,10 +20,6 @@ class promise_impl;
 class handler_list;
 
 class resumer_tag {
-    template<typename E>
-    friend class resumer;
-    friend promise_base;
-
 public:
     resumer_tag(resumer_tag const&) = delete;
     resumer_tag(resumer_tag&&) = delete;
@@ -33,6 +28,10 @@ public:
     auto operator=(resumer_tag&&) -> resumer_tag& = delete;
 
 private:
+    template<typename E>
+    friend class resumer;
+    friend promise_base;
+
     explicit resumer_tag(promise_base& resume) noexcept : resume_{resume} {}
 
     promise_base& resume_;
@@ -43,9 +42,6 @@ class effect_awaiter;
 
 template<typename E>
 class resumer {
-    template<typename E2>
-    friend class effect_awaiter;
-
 public:
     resumer(resumer const&) = delete;
     resumer(resumer&&) = delete;
@@ -60,6 +56,9 @@ public:
     }
 
 private:
+    template<typename E2>
+    friend class effect_awaiter;
+
     explicit resumer(promise_base& resume, effect_awaiter<E>& effect) noexcept
         : resume_{resume}, effect_{effect} {}
 
@@ -69,17 +68,6 @@ private:
 
 // Base promise type.
 class promise_base {
-    // TODO: Remove friends?
-    template<typename T>
-    friend class promise_impl;
-    template<typename E, typename F>
-    friend class handler;
-    template<typename Task, typename... Hs>
-    friend class handled_task;
-    template<typename E>
-    friend class effect_awaiter;
-    friend class untyped_task;
-
 public:
     struct final_awaiter : std::suspend_always {
         template<std::derived_from<promise_base> U>
@@ -111,7 +99,7 @@ public:
         set_handling(false);
     }
 
-    [[noreturn]] auto unhandled_exception() noexcept -> void { std::terminate(); }
+    [[noreturn]] auto unhandled_exception() noexcept -> void { unreachable("unhandled exception"); }
     [[nodiscard]] auto final_suspend() const noexcept -> final_awaiter { return {}; }
 
 protected:
@@ -124,6 +112,17 @@ protected:
     }
 
 private:
+    // TODO: Remove friends?
+    template<typename T>
+    friend class promise_impl;
+    template<typename E, typename F>
+    friend class handler;
+    template<typename Task, typename... Hs>
+    friend class handled_task;
+    template<typename E>
+    friend class effect_awaiter;
+    friend class untyped_task;
+
     auto set_cont(promise_base& cont) noexcept -> std::coroutine_handle<> {
         cont_ = &cont;
         return frame_;
@@ -138,9 +137,6 @@ private:
 };
 
 class untyped_task {
-    template<typename E>
-    friend class effect_awaiter;
-
 public:
     untyped_task() noexcept = default;
     explicit untyped_task(promise_base* p) noexcept : promise_{p} {}
@@ -161,6 +157,9 @@ public:
     explicit operator bool() const noexcept { return promise_ != nullptr; }
 
 private:
+    template<typename E>
+    friend class effect_awaiter;
+
     auto swap(untyped_task& that) noexcept -> void {
         using std::swap;
         swap(promise_, that.promise_);
@@ -178,7 +177,7 @@ public:
     auto operator=(handler_list&&) -> handler_list& = default;
 
     template<typename E>
-    auto handle(E const& eff, resumer<E>& resume) -> untyped_task {
+    auto handle(E&& eff, resumer<E>& resume) noexcept -> untyped_task {
         return handle_untyped(type_id_for<E>, &eff, &resume);
     }
 
@@ -187,7 +186,7 @@ protected:
     ~handler_list() = default;
 
 private:
-    virtual auto handle_untyped(type_id id, void const* eff, void* resume) -> untyped_task = 0;
+    virtual auto handle_untyped(type_id id, void* eff, void* resume) noexcept -> untyped_task = 0;
 };
 
 template<typename P>
@@ -239,7 +238,7 @@ public:
         if (p->handling()) p = p->cont_->cont_;
         for (auto* k = p; k; p = k, k = k->cont_) {
             if (auto* hs = k->handlers_) {
-                if (auto h = hs->handle(eff_, resumer_)) {
+                if (auto h = hs->handle(std::move(eff_), resumer_)) {
                     h.promise_->set_cont(*k);
                     task_ = std::move(h);
                     return;
@@ -301,14 +300,14 @@ private:
 template<typename E, typename F>
 class handler {
 public:
-    using task_type = std::invoke_result_t<F, E const&, resumer<E>&>;
+    using task_type = std::invoke_result_t<F, E&&, resumer<E>&>;
     using effect_type = E;
 
     handler(F fn) noexcept : fn_{std::move(fn)} {}
 
-    auto handle(type_id id, void const* eff, void* resume) -> untyped_task {
+    auto handle(type_id id, void* eff, void* resume) noexcept -> untyped_task {
         if (id != type_id_for<E>) return {};
-        auto task = fn_(*static_cast<E const*>(eff), *static_cast<resumer<E>*>(resume));
+        auto task = fn_(std::move(*static_cast<E*>(eff)), *static_cast<resumer<E>*>(resume));
         auto& p = task.release().promise();
         p.set_handling(true);
         return untyped_task{&p};
@@ -331,7 +330,7 @@ public:
         : handlers_{std::make_tuple(std::move(handlers)...)} {}
 
 private:
-    auto handle_untyped(type_id id, void const* eff, void* resume) -> untyped_task override {
+    auto handle_untyped(type_id id, void* eff, void* resume) noexcept -> untyped_task override {
         return std::apply(
             [=](auto&... hs) {
                 auto h = untyped_task{};
