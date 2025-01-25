@@ -1,4 +1,4 @@
-name: Build
+name: CI
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ main ]
   schedule:
-    - cron: "0 0 * * 0"
+    - cron: '17 3 * * 4'
 
 jobs:
   build:
@@ -21,8 +21,8 @@ jobs:
         sanitizer:
           - asan
           - tsan
-        os: [ubuntu-latest]
-        build_type: [Release]
+        os: [ ubuntu-latest ]
+        build_type: [ Release ]
 
     steps:
     - uses: actions/checkout@v4
