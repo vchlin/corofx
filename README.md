@@ -85,7 +85,7 @@ yielded 3
 > Effect types are checked at compile-time, ensuring proper handling throughout the call chain.
 
 > [!TIP]
-> The library leverages [symmetric transfer](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0913r0.html) to handle repeated effect invocations without stack overflow.
+> The library uses [symmetric transfer](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0913r0.html) to handle repeated effect invocations without stack overflow.
 
 See [examples](examples) for more interesting use cases of effects and handlers.
 
