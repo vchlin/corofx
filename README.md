@@ -23,9 +23,9 @@ C++ [coroutines](https://en.cppreference.com/w/cpp/language/coroutines) provide 
 > [!NOTE]
 > C++ coroutines are state machines that can be resumed only once. As a result, this library supports only one-shot effect handlers.
 
-## Effect Handling
+## A Motivating Example
 
-Here is a motivating [example](examples/yield.cpp) adapted from [Koka](https://koka-lang.github.io/koka/doc/book.html#why-handlers):
+Here is a [generator example](examples/yield.cpp) adapted from [Koka](https://koka-lang.github.io/koka/doc/book.html#why-handlers):
 ```C++
 #include "corofx/task.hpp"
 
@@ -89,7 +89,7 @@ yielded 3
 
 See [examples](examples) for more interesting use cases of effects and handlers.
 
-## Using This Library
+## Getting Started
 
 ### Requirements
 
@@ -100,9 +100,9 @@ A compiler with C++20 support is required. While older compiler versions may wor
 | GCC      | 13.3.0  |
 | Clang    | 18.1.3  |
 
-### Getting Started
+### Building with CMake
 
-To get started with this library, use CMake with `FetchContent`:
+To build and use this library in your project, use CMake with `FetchContent`:
 
 ```CMake
 cmake_minimum_required(VERSION 3.28)
