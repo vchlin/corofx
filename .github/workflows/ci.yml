@@ -24,6 +24,10 @@ jobs:
         os: [ ubuntu-latest ]
         build_type: [ Release ]
 
+        include:
+          - preset: msvc
+            os: windows-latest
+
     steps:
     - uses: actions/checkout@v4
 
