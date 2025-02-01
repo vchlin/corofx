@@ -1,6 +1,7 @@
 #pragma once
 
 #include "corofx/check.hpp"
+#include "corofx/effect.hpp"
 #include "detail/type_id.hpp"
 
 #include <coroutine>
@@ -28,7 +29,7 @@ public:
     auto operator=(resumer_tag&&) -> resumer_tag& = delete;
 
 private:
-    template<typename E>
+    template<effect E>
     friend class resumer;
     friend promise_base;
 
@@ -37,10 +38,10 @@ private:
     promise_base& resume_;
 };
 
-template<typename E>
+template<effect E>
 class effect_awaiter;
 
-template<typename E>
+template<effect E>
 class resumer {
 public:
     resumer(resumer const&) = delete;
@@ -56,14 +57,44 @@ public:
     }
 
 private:
-    template<typename E2>
-    friend class effect_awaiter;
+    friend class effect_awaiter<E>;
 
     explicit resumer(promise_base& resume, effect_awaiter<E>& effect) noexcept
         : resume_{resume}, effect_{effect} {}
 
     promise_base& resume_;
     effect_awaiter<E>& effect_;
+};
+
+class untyped_task {
+public:
+    untyped_task() noexcept = default;
+    explicit untyped_task(promise_base* p) noexcept : promise_{p} {}
+    untyped_task(untyped_task const&) = delete;
+    untyped_task(untyped_task&& that) noexcept : promise_{std::exchange(that.promise_, {})} {}
+
+    ~untyped_task();
+
+    auto operator=(untyped_task const&) -> untyped_task& = delete;
+
+    auto operator=(untyped_task&& that) noexcept -> untyped_task& {
+        untyped_task{std::move(that)}.swap(*this);
+        return *this;
+    }
+
+    explicit operator bool() const noexcept { return promise_ != nullptr; }
+
+private:
+    template<effect E>
+    friend class effect_awaiter;
+    friend promise_base;
+
+    auto swap(untyped_task& that) noexcept -> void {
+        using std::swap;
+        swap(promise_, that.promise_);
+    }
+
+    promise_base* promise_{};
 };
 
 // Base promise type.
@@ -102,70 +133,30 @@ public:
     [[noreturn]] auto unhandled_exception() noexcept -> void { unreachable("unhandled exception"); }
     [[nodiscard]] auto final_suspend() const noexcept -> final_awaiter { return {}; }
 
+    template<effect E>
+    auto create_handler(E& eff, resumer<E>& resumer) noexcept -> untyped_task;
+
+    [[nodiscard]] auto get_frame() const noexcept -> std::coroutine_handle<> { return frame_; }
+    auto set_handling(bool handling) noexcept -> void { is_handler_ = handling; }
+    auto set_handlers(handler_list& handlers) noexcept -> void { handlers_ = &handlers; }
+
 protected:
     promise_base(std::coroutine_handle<> frame) noexcept : frame_{frame} {}
     ~promise_base() = default;
 
-    [[nodiscard]]
-    auto handling() const noexcept -> bool {
-        return is_handler_;
-    }
+    [[nodiscard]] auto handling() const noexcept -> bool { return is_handler_; }
+    [[nodiscard]] auto get_cont() const noexcept -> promise_base& { return *cont_; }
 
 private:
-    // TODO: Remove friends?
-    template<typename T>
-    friend class promise_impl;
-    template<typename E, typename F>
-    friend class handler;
-    template<typename Task, typename... Hs>
-    friend class handled_task;
-    template<typename E>
-    friend class effect_awaiter;
-    friend class untyped_task;
-
     auto set_cont(promise_base& cont) noexcept -> std::coroutine_handle<> {
         cont_ = &cont;
         return frame_;
     }
 
-    auto set_handling(bool handling) noexcept -> void { is_handler_ = handling; }
-
     std::coroutine_handle<> const frame_;
     promise_base* cont_{};
     handler_list* handlers_{};
     bool is_handler_{};
-};
-
-class untyped_task {
-public:
-    untyped_task() noexcept = default;
-    explicit untyped_task(promise_base* p) noexcept : promise_{p} {}
-    untyped_task(untyped_task const&) = delete;
-    untyped_task(untyped_task&& that) noexcept : promise_{std::exchange(that.promise_, {})} {}
-
-    ~untyped_task() {
-        if (promise_) promise_->frame_.destroy();
-    }
-
-    auto operator=(untyped_task const&) -> untyped_task& = delete;
-
-    auto operator=(untyped_task&& that) noexcept -> untyped_task& {
-        untyped_task{std::move(that)}.swap(*this);
-        return *this;
-    }
-
-    explicit operator bool() const noexcept { return promise_ != nullptr; }
-
-private:
-    template<typename E>
-    friend class effect_awaiter;
-
-    auto swap(untyped_task& that) noexcept -> void {
-        using std::swap;
-        swap(promise_, that.promise_);
-    }
-
-    promise_base* promise_{};
 };
 
 // A list of effect handlers.
@@ -176,7 +167,7 @@ public:
     auto operator=(handler_list const&) -> handler_list& = default;
     auto operator=(handler_list&&) -> handler_list& = default;
 
-    template<typename E>
+    template<effect E>
     auto handle(E&& eff, resumer<E>& resume) noexcept -> untyped_task {
         return handle_untyped(type_id_for<E>, &eff, &resume);
     }
@@ -228,29 +219,17 @@ private:
     HT ht_;
 };
 
-template<typename E>
+template<effect E>
 class effect_awaiter : public std::suspend_always {
 public:
     using value_type = E::return_type;
 
     explicit effect_awaiter(promise_base* p, E eff) noexcept
-        : eff_{std::move(eff)}, resumer_{*p, *this} {
-        if (p->handling()) p = p->cont_->cont_;
-        for (auto* k = p; k; p = k, k = k->cont_) {
-            if (auto* hs = k->handlers_) {
-                if (auto h = hs->handle(std::move(eff_), resumer_)) {
-                    h.promise_->set_cont(*k);
-                    task_ = std::move(h);
-                    return;
-                }
-            }
-        }
-        unreachable("unhandled effect");
-    }
+        : eff_{std::move(eff)}, resumer_{*p, *this}, task_(p->create_handler(eff_, resumer_)) {}
 
     template<std::derived_from<promise_base> U>
     auto await_suspend(std::coroutine_handle<U>) noexcept -> std::coroutine_handle<> {
-        return task_.promise_->frame_;
+        return task_.promise_->get_frame();
     }
 
     auto await_resume() noexcept -> value_type { return std::move(*value_); }
@@ -258,7 +237,7 @@ public:
     auto set_value(value_type value) noexcept -> void { value_ = std::move(value); }
 
 private:
-    E eff_;
+    E eff_; // NOTE: This effect will not be moved until the task starts running.
     resumer<E> resumer_;
     untyped_task task_;
     std::optional<value_type> value_;
@@ -283,8 +262,10 @@ public:
 
     auto return_value(T value) noexcept -> void {
         if (handling()) {
-            auto* k = static_cast<promise_impl<T>*>(cont_);
-            k->return_value(std::move(value));
+            // SAFETY: A handler returns the same type as the function it runs with. This is
+            // checked at compile time in `task::with`.
+            auto& k = static_cast<promise_impl<T>&>(get_cont());
+            k.return_value(std::move(value));
         } else {
             value_ = std::move(value);
         }
@@ -297,7 +278,7 @@ private:
 };
 
 // An effect handler entry.
-template<typename E, typename F>
+template<effect E, typename F>
 class handler {
 public:
     using task_type = std::invoke_result_t<F, E&&, resumer<E>&>;
@@ -307,6 +288,7 @@ public:
 
     auto handle(type_id id, void* eff, void* resume) noexcept -> untyped_task {
         if (id != type_id_for<E>) return {};
+        // SAFETY: Type ID is checked above to ensure we are handling the right effect.
         auto task = fn_(std::move(*static_cast<E*>(eff)), *static_cast<resumer<E>*>(resume));
         auto& p = task.release().promise();
         p.set_handling(true);
@@ -318,7 +300,7 @@ private:
 };
 
 // Creates an effect handler entry.
-template<typename E, typename F>
+template<effect E, typename F>
 auto make_handler(F fn) noexcept -> handler<E, F> {
     return handler<E, F>{std::move(fn)};
 }
@@ -342,5 +324,24 @@ private:
 
     std::tuple<Hs...> handlers_{};
 };
+
+inline untyped_task::~untyped_task() {
+    if (promise_) promise_->get_frame().destroy();
+}
+
+template<effect E>
+auto promise_base::create_handler(E& eff, resumer<E>& resumer) noexcept -> untyped_task {
+    auto* p = this;
+    if (p->handling()) p = p->cont_->cont_;
+    for (; p; p = p->cont_) {
+        if (auto* hs = p->handlers_) {
+            if (auto h = hs->handle(std::move(eff), resumer)) {
+                h.promise_->set_cont(*p);
+                return std::move(h);
+            }
+        }
+    }
+    unreachable("unhandled effect");
+}
 
 } // namespace corofx

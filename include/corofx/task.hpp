@@ -1,5 +1,6 @@
 #pragma once
 
+#include "corofx/effect.hpp"
 #include "detail/type_set.hpp"
 #include "promise.hpp"
 
@@ -19,15 +20,13 @@ public:
 
     handled_task(Task task, Hs... handlers) noexcept
         : task_{std::move(task)}, handlers_{std::move(handlers)...} {
-        task_.frame_.promise().handlers_ = &handlers_;
+        task_.frame_.promise().set_handlers(handlers_);
     }
 
     auto operator()() && noexcept -> value_type
         requires(effect_types::empty)
     {
-        // TODO: Remove duplicate code.
-        task_.frame_.resume();
-        return task_.frame_.promise().take_value();
+        return task_.call_unchecked();
     }
 
 private:
@@ -38,7 +37,7 @@ private:
 };
 
 // Represents a unit of computation that is potentially effectful.
-template<typename T, std::movable... Es>
+template<typename T, effect... Es>
 // TODO: Check if `Es...` are unique.
 class task {
 public:
@@ -64,8 +63,7 @@ public:
     auto operator()() && noexcept -> T
         requires(sizeof...(Es) == 0)
     {
-        frame_.resume();
-        return frame_.promise().take_value();
+        return call_unchecked();
     }
 
     // Runs the task with the provided handlers when awaited.
@@ -80,11 +78,8 @@ public:
     }
 
 private:
-    template<typename U, std::movable... Gs>
-    friend class task;
-    // TODO: Remove friend?
     friend promise_base;
-    template<typename E, typename F>
+    template<effect E, typename F>
     friend class handler;
     template<typename Task, typename... Hs>
     friend class handled_task;
@@ -101,10 +96,15 @@ private:
         return std::exchange(frame_, {});
     }
 
+    auto call_unchecked() noexcept -> T {
+        frame_.resume();
+        return frame_.promise().take_value();
+    }
+
     handle_type frame_{};
 };
 
-template<typename T, std::movable... Es>
+template<typename T, effect... Es>
 class task<T, Es...>::promise_type : public promise_impl<T> {
 public:
     using value_type = T;
@@ -113,7 +113,7 @@ public:
 
     auto get_return_object() noexcept -> task { return task{handle_type::from_promise(*this)}; }
 
-    template<typename U, std::movable... Gs>
+    template<typename U, effect... Gs>
     auto await_transform(task<U, Gs...> task) noexcept
         -> promise_base::task_awaiter<typename corofx::task<U, Gs...>::promise_type>
         requires(detail::type_set<Es...>::template contains<detail::type_set<Gs...>>)
@@ -130,7 +130,7 @@ public:
         return promise_base::handled_task_awaiter<handled_task<Task, Hs...>>{std::move(ht)};
     }
 
-    template<std::movable E>
+    template<effect E>
     auto await_transform(E eff) noexcept -> effect_awaiter<E>
         requires(detail::type_set<Es...>::template contains<E>)
     {

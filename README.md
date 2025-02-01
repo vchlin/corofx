@@ -82,7 +82,7 @@ yielded 3
 ```
 
 > [!TIP]
-> Effect types are checked at compile-time, ensuring proper handling throughout the call chain.
+> Effect types are checked at compile time, ensuring proper handling throughout the call chain.
 
 > [!TIP]
 > The library uses [symmetric transfer](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0913r0.html) to handle repeated effect invocations without stack overflow.
