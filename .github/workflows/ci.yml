@@ -21,10 +21,16 @@ jobs:
         sanitizer:
           - asan
           - tsan
+          - ""
         os: [ ubuntu-latest ]
-        build_type: [ Release ]
+        build_type:
+          - Debug
+          - Release
 
         include:
+          - preset: msvc
+            os: windows-latest
+            build_type: Debug
           - preset: msvc
             os: windows-latest
             build_type: Release
