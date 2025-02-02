@@ -47,8 +47,10 @@ jobs:
         EOF
 
     - name: Configure CMake
+      shell: bash
       run: >
         cmake
+        -L
         -S ${{ github.workspace }}
         -B ${{ steps.strings.outputs.build-output-dir }}
         --preset=${{ matrix.preset }}
