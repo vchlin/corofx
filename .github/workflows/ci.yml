@@ -27,6 +27,7 @@ jobs:
         include:
           - preset: msvc
             os: windows-latest
+            build_type: Release
 
     steps:
     - uses: actions/checkout@v4
@@ -44,7 +45,7 @@ jobs:
       run: |
         cat << EOF >> "$GITHUB_OUTPUT"
         build-output-dir=${{ github.workspace }}/build
-        sanitizer="-DCOROFX_ENABLE_${SANITIZER^^}=ON"
+        sanitizer=-DCOROFX_ENABLE_${SANITIZER^^}=ON
         EOF
 
     - name: Configure CMake
