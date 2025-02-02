@@ -103,7 +103,8 @@ public:
     struct final_awaiter : std::suspend_always {
         template<std::derived_from<promise_base> U>
         auto await_suspend(std::coroutine_handle<U> frame) noexcept -> std::coroutine_handle<> {
-            auto* p = (promise_base*){&frame.promise()};
+            using base_ptr = promise_base*;
+            auto* p = base_ptr{&frame.promise()};
             if (p->handling()) p = p->cont_;
             if (auto* k = p->cont_) return k->frame_;
             return std::noop_coroutine();

@@ -50,7 +50,7 @@ if(PROJECT_IS_TOP_LEVEL)
     target_compile_options(CoroFX INTERFACE
         $<$<CXX_COMPILER_ID:Clang,GNU>:
             $<$<CONFIG:Release>:-O2>
-            -Wall -Wconversion -Werror -Wextra -Wformat=2 -Wsign-conversion
+            -Wall -Wconversion -Werror -Wextra -Wformat=2 -Wpedantic -Wsign-conversion
             -fno-rtti -fno-semantic-interposition
             $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
             $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>

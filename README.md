@@ -99,6 +99,7 @@ A compiler with C++20 support is required. While older compiler versions may wor
 | -------- | ------- |
 | GCC      | 13.3.0  |
 | Clang    | 18.1.3  |
+| MSVC     | 19.42   |
 
 ### Building with CMake
 

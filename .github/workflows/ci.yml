@@ -24,10 +24,16 @@ jobs:
         os: [ ubuntu-latest ]
         build_type: [ Release ]
 
+        include:
+          - preset: msvc
+            os: windows-latest
+            build_type: Release
+
     steps:
     - uses: actions/checkout@v4
 
     - name: Set environment variables
+      shell: bash
       run: |
         cat << EOF >> "$GITHUB_ENV"
         SANITIZER=${{ matrix.sanitizer }}
@@ -39,6 +45,7 @@ jobs:
       run: |
         cat << EOF >> "$GITHUB_OUTPUT"
         build-output-dir=${{ github.workspace }}/build
+        sanitizer=-DCOROFX_ENABLE_${SANITIZER^^}=ON
         EOF
 
     - name: Configure CMake
@@ -48,7 +55,7 @@ jobs:
         -S ${{ github.workspace }}
         -B ${{ steps.strings.outputs.build-output-dir }}
         --preset=${{ matrix.preset }}
-        -DCOROFX_ENABLE_${SANITIZER^^}=ON
+        ${{ steps.strings.outputs.sanitizer }}
 
     - name: Build
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
