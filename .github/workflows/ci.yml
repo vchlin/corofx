@@ -44,17 +44,17 @@ jobs:
       run: |
         cat << EOF >> "$GITHUB_OUTPUT"
         build-output-dir=${{ github.workspace }}/build
+        sanitizer="-DCOROFX_ENABLE_${SANITIZER^^}=ON"
         EOF
 
     - name: Configure CMake
-      shell: bash
       run: >
         cmake
         -L
         -S ${{ github.workspace }}
         -B ${{ steps.strings.outputs.build-output-dir }}
         --preset=${{ matrix.preset }}
-        -DCOROFX_ENABLE_${SANITIZER^^}=ON
+        ${{ steps.strings.outputs.sanitizer }}
 
     - name: Build
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
