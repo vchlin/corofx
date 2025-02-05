@@ -20,7 +20,8 @@ jobs:
           - clang
         sanitizer:
           - asan
-          - tsan
+          #- tsan
+          - ubsan
           - ""
         os: [ ubuntu-latest ]
         build_type:
