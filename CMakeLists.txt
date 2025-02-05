@@ -11,6 +11,7 @@ include(AddTest)
 
 option(COROFX_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(COROFX_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
+option(COROFX_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 
 include(CheckPIESupported)
 check_pie_supported()
@@ -52,8 +53,9 @@ if(PROJECT_IS_TOP_LEVEL)
             $<$<CONFIG:Release>:-O2>
             -Wall -Wconversion -Werror -Wextra -Wformat=2 -Wpedantic -Wsign-conversion
             -fno-rtti -fno-semantic-interposition
-            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
-            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>
+            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address>
+            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread>
+            $<$<BOOL:${COROFX_ENABLE_UBSAN}>:-fsanitize=undefined -fno-sanitize-recover>
             -fstack-clash-protection
             -fstack-protector-strong
             -fstrict-flex-arrays=3
@@ -62,8 +64,9 @@ if(PROJECT_IS_TOP_LEVEL)
     target_link_options(CoroFX INTERFACE
         $<$<CXX_COMPILER_ID:Clang,GNU>:
             $<$<CONFIG:Release>:-s>
-            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address,undefined>
-            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread,undefined>
+            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address>
+            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread>
+            $<$<BOOL:${COROFX_ENABLE_UBSAN}>:-fsanitize=undefined -fno-sanitize-recover>
             "LINKER:-z,nodlopen,-z,noexecstack,-z,now,-z,relro" >)
 endif()
 
