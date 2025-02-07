@@ -23,6 +23,7 @@ auto do_bar() -> task<vec, bar> {
         x = co_await bar{std::move(x)};
         check(x[i] == i);
     }
+    check(x.size() == len);
     co_return x;
 }
 

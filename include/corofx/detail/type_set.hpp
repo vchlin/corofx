@@ -33,6 +33,7 @@ struct subtract_impl {
     using result = Tail;
 };
 
+// TODO: Down with ::template and .template
 template<typename... Ts>
 struct type_set {
     template<typename... Us>
@@ -45,6 +46,14 @@ struct type_set {
 
     template<typename U>
     static constexpr bool contains = contains_impl<type_set, U>::value;
+
+    template<typename F>
+    static constexpr auto apply(F&& f) -> decltype(auto) {
+        return f.template operator()<Ts...>();
+    }
+
+    template<template<typename...> typename S>
+    using unpack_to = S<Ts...>;
 };
 
 template<template<typename...> typename S, typename... Ts>
@@ -60,6 +69,7 @@ struct add_impl<S<Ts...>, S<U, Us...>> {
         add_impl<S<Ts..., U>, S<Us...>>>::result;
 };
 
+// TODO: Do filter then join instead?
 // TODO: Double check if template instantiation is lazy enough?
 template<
     template<typename...>
