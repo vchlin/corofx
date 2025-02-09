@@ -45,7 +45,7 @@ if(PROJECT_IS_TOP_LEVEL)
         $<$<CXX_COMPILER_ID:Clang,GNU>:
             _FORTIFY_SOURCE=3
             _GLIBCXX_ASSERTIONS>)
-    target_compile_options(CoroFX INTERFACE
+    target_compile_options(CoroFX PUBLIC
         $<$<CXX_COMPILER_ID:Clang,GNU>:
             -Wall -Wconversion -Werror -Wextra -Wformat=2 -Wpedantic -Wsign-conversion
             -fno-rtti -fno-semantic-interposition
@@ -59,15 +59,13 @@ if(PROJECT_IS_TOP_LEVEL)
             -fvisibility=hidden>
         $<$<CXX_COMPILER_ID:MSVC>:
             $<$<BOOL:${COROFX_ENABLE_ASAN}>:/fsanitize=address>>)
-    target_link_options(CoroFX INTERFACE
+    target_link_options(CoroFX PUBLIC
         $<$<CXX_COMPILER_ID:Clang,GNU>:
             $<$<CONFIG:Release>:-s>
             $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address>
             $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread>
             $<$<BOOL:${COROFX_ENABLE_UBSAN}>:-fsanitize=undefined -fno-sanitize-recover>
-            "LINKER:-z,nodlopen,-z,noexecstack,-z,now,-z,relro" >
-        $<$<CXX_COMPILER_ID:MSVC>:
-            $<$<BOOL:${COROFX_ENABLE_ASAN}>:/fsanitize=address>>)
+            "LINKER:-z,nodlopen,-z,noexecstack,-z,now,-z,relro" >)
 endif()
 
 if(PROJECT_IS_TOP_LEVEL)
