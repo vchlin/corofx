@@ -56,14 +56,18 @@ if(PROJECT_IS_TOP_LEVEL)
             -fstack-protector-strong
             -fstrict-flex-arrays=3
             -ftrivial-auto-var-init=zero
-            -fvisibility=hidden>)
+            -fvisibility=hidden>
+        $<$<CXX_COMPILER_ID:MSVC>:
+            $<$<BOOL:${COROFX_ENABLE_ASAN}>:/fsanitize=address>>)
     target_link_options(CoroFX INTERFACE
         $<$<CXX_COMPILER_ID:Clang,GNU>:
             $<$<CONFIG:Release>:-s>
             $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address>
             $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread>
             $<$<BOOL:${COROFX_ENABLE_UBSAN}>:-fsanitize=undefined -fno-sanitize-recover>
-            "LINKER:-z,nodlopen,-z,noexecstack,-z,now,-z,relro" >)
+            "LINKER:-z,nodlopen,-z,noexecstack,-z,now,-z,relro" >
+        $<$<CXX_COMPILER_ID:MSVC>:
+            $<$<BOOL:${COROFX_ENABLE_ASAN}>:/fsanitize=address>>)
 endif()
 
 if(PROJECT_IS_TOP_LEVEL)
