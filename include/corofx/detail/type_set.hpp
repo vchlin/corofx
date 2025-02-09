@@ -20,7 +20,7 @@ template<template<typename...> typename S, typename... Ts, typename... Us>
 struct contains_impl<S<Ts...>, S<Us...>> {
     struct set : std::type_identity<Ts>... {};
 
-    static constexpr bool value = (std::is_base_of_v<std::type_identity<Us>, set> && ...);
+    static constexpr bool value = (std::is_base_of_v<std::type_identity<Us>, set> and ...);
 };
 
 template<typename S, typename S2, typename... SN>

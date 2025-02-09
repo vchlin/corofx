@@ -291,7 +291,7 @@ public:
         auto task = fn_(std::move(eff), resume);
         auto& p = task.release().promise();
         p.set_cont(promise_);
-        if constexpr (!std::is_void_v<value_type>) p.set_output(*output_);
+        if constexpr (not std::is_void_v<value_type>) p.set_output(*output_);
         task_type::effect_types::apply(
             [&]<effect... Es>() { (p.set_handler(ev_vec_.template get_handler<Es>()), ...); });
         return untyped_task{&p};
@@ -299,7 +299,7 @@ public:
 
     template<typename Task>
     auto copy_handlers(Task& t) noexcept -> void {
-        if constexpr (!task_type::effect_types::empty) {
+        if constexpr (not task_type::effect_types::empty) {
             task_type::effect_types::apply(
                 [&]<effect... Es>() { (ev_vec_.set_handler(t.template get_handler<Es>()), ...); });
         }
@@ -310,7 +310,7 @@ public:
     }
 
     auto set_output(std::optional<value_type>& output) noexcept -> void
-        requires(!std::is_void_v<value_type>)
+        requires(not std::is_void_v<value_type>)
     {
         output_ = &output;
     }

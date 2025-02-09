@@ -120,10 +120,10 @@ public:
     auto operator()() && noexcept -> T
         requires(sizeof...(Es) == 0)
     {
-        if constexpr (std::is_void_v<value_type>) {
+        if constexpr (std::is_void_v<T>) {
             call_unchecked();
         } else {
-            auto output = std::optional<value_type>{};
+            auto output = std::optional<T>{};
             call_unchecked(output);
             return std::move(*output);
         }
@@ -135,8 +135,8 @@ public:
     auto with(Hs... handlers) && noexcept -> handled_task<task, Hs...>
         requires(
             detail::type_set<Es...>::template contains<
-                detail::type_set<typename Hs::effect_type...>> &&
-            (std::same_as<value_type, typename Hs::task_type::value_type> && ...))
+                detail::type_set<typename Hs::effect_type...>> and
+            (std::same_as<T, typename Hs::task_type::value_type> and ...))
     {
         return handled_task{std::move(*this), std::move(handlers)...};
     }
@@ -167,7 +167,7 @@ private:
     }
 
     auto set_output(std::optional<T>& output) noexcept -> void
-        requires(!std::is_void_v<T>)
+        requires(not std::is_void_v<T>)
     {
         frame_.promise().set_output(output);
     }
@@ -179,7 +179,7 @@ private:
     }
 
     auto call_unchecked(std::optional<T>& output) noexcept -> void
-        requires(!std::is_void_v<T>)
+        requires(not std::is_void_v<T>)
     {
         set_output(output);
         frame_.resume();
@@ -191,8 +191,6 @@ private:
 template<typename T, effect... Es>
 class task<T, Es...>::promise_type : public promise_impl<T> {
 public:
-    using value_type = T;
-
     promise_type() noexcept : promise_impl<T>{handle_type::from_promise(*this)} {}
 
     [[nodiscard]]
@@ -206,7 +204,7 @@ public:
         requires(detail::type_set<Es...>::template contains<detail::type_set<Gs...>>)
     {
         auto& p = task.frame_.promise();
-        p.template copy_handlers(*this);
+        p.copy_handlers(*this);
         return task_awaiter<U>{task};
     }
 

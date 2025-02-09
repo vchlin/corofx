@@ -14,7 +14,7 @@ struct yield {
 
 auto traverse(std::vector<int> xs) -> task<void, yield> {
     for (auto x : xs) {
-        if (!co_await yield{x}) break;
+        if (not co_await yield{x}) break;
     }
     co_return {};
 }
