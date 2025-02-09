@@ -16,25 +16,29 @@ jobs:
       fail-fast: false
       matrix:
         preset:
-          - gcc
           - clang
+          - gcc
+          - msvc
         sanitizer:
+          - ""
           - asan
           #- tsan
           - ubsan
-          - ""
-        os: [ ubuntu-latest ]
         build_type:
           - Debug
           - Release
 
         include:
+          - preset: clang
+            os: ubuntu-latest
+          - preset: gcc
+            os: ubuntu-latest
           - preset: msvc
             os: windows-latest
-            build_type: Debug
+
+        exclude:
           - preset: msvc
-            os: windows-latest
-            build_type: Release
+            sanitizer: ubsan
 
     steps:
     - uses: actions/checkout@v4
