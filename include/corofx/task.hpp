@@ -4,7 +4,6 @@
 #include "detail/type_set.hpp"
 #include "promise.hpp"
 
-#include <concepts>
 #include <coroutine>
 #include <tuple>
 #include <utility>
@@ -36,7 +35,9 @@ public:
     auto operator=(handled_task const&) -> handled_task& = delete;
 
     auto operator=(handled_task&& that) noexcept -> handled_task& {
-        handled_task{std::move(that)}.swap(*this);
+        auto left = std::move(that);
+        swap(left, *this);
+        bind_handlers();
         return *this;
     }
 
@@ -52,6 +53,12 @@ public:
             task_.call_unchecked(output);
             return std::move(*output);
         }
+    }
+
+    friend auto swap(handled_task& left, handled_task& right) noexcept -> void {
+        using std::swap;
+        swap(left.task_, right.task_);
+        swap(left.handlers_, right.handlers_);
     }
 
 private:
@@ -73,9 +80,9 @@ private:
         std::apply([&](auto&... hs) { (hs.copy_handlers(t), ...); }, handlers_);
     }
 
-    auto set_cont(promise_impl<value_type>& cont) noexcept -> void {
-        task_.frame_.promise().set_cont(&cont);
-        std::apply([&](auto&... hs) { (hs.set_cont(&cont), ...); }, handlers_);
+    auto set_cont(std::coroutine_handle<> cont) noexcept -> void {
+        task_.frame_.promise().set_cont(cont);
+        std::apply([=](auto&... hs) { (hs.set_cont(cont), ...); }, handlers_);
     }
 
     [[nodiscard]]
@@ -112,13 +119,14 @@ public:
     auto operator=(task const&) -> task& = delete;
 
     auto operator=(task&& that) noexcept -> task& {
-        task{std::move(that)}.swap(*this);
+        auto left = std::move(that);
+        swap(left, *this);
         return *this;
     }
 
     [[nodiscard]]
     auto operator()() && noexcept -> T
-        requires(sizeof...(Es) == 0)
+        requires(effect_types::empty)
     {
         if constexpr (std::is_void_v<T>) {
             call_unchecked();
@@ -129,13 +137,18 @@ public:
         }
     }
 
+    friend auto swap(task& left, task& right) noexcept -> void {
+        using std::swap;
+        swap(left.frame_, right.frame_);
+    }
+
     // Runs the task with the provided handlers when awaited.
+    // TODO: Disallow multiple handlers for the same effect?
     template<typename... Hs>
     [[nodiscard]]
     auto with(Hs... handlers) && noexcept -> handled_task<task, Hs...>
         requires(
-            detail::type_set<Es...>::template contains<
-                detail::type_set<typename Hs::effect_type...>> and
+            effect_types::template contains<detail::type_set<typename Hs::effect_type...>> and
             (std::same_as<T, typename Hs::task_type::value_type> and ...))
     {
         return handled_task{std::move(*this), std::move(handlers)...};
@@ -150,11 +163,6 @@ private:
     friend class task_awaiter;
 
     explicit task(handle_type h) noexcept : frame_{h} {}
-
-    auto swap(task& that) noexcept -> void {
-        using std::swap;
-        swap(frame_, that.frame_);
-    }
 
     [[nodiscard]]
     auto release() noexcept -> handle_type {
@@ -185,7 +193,7 @@ private:
         frame_.resume();
     }
 
-    handle_type frame_{};
+    handle_type frame_;
 };
 
 template<typename T, effect... Es>
@@ -200,30 +208,28 @@ public:
 
     template<typename U, effect... Gs>
     [[nodiscard]]
-    auto await_transform(task<U, Gs...>&& task) noexcept -> task_awaiter<U>
-        requires(detail::type_set<Es...>::template contains<detail::type_set<Gs...>>)
+    auto await_transform(task<U, Gs...> t) noexcept -> task_awaiter<decltype(t)>
+        requires(effect_types::template contains<typename decltype(t)::effect_types>)
     {
-        auto& p = task.frame_.promise();
+        auto& p = t.frame_.promise();
         p.copy_handlers(*this);
-        return task_awaiter<U>{task};
+        return task_awaiter{std::move(t)};
     }
 
-    template<std::movable Task, typename... Hs>
+    template<typename Task, typename... Hs>
     [[nodiscard]]
-    auto await_transform(handled_task<Task, Hs...>&& task) noexcept
-        -> task_awaiter<typename Task::value_type>
-        requires(detail::type_set<Es...>::template contains<
-                 typename handled_task<Task, Hs...>::effect_types>)
+    auto await_transform(handled_task<Task, Hs...> t) noexcept -> task_awaiter<decltype(t)>
+        requires(effect_types::template contains<typename decltype(t)::effect_types>)
     {
-        task.copy_handlers(*this);
-        task.set_cont(*this);
-        return task_awaiter<typename Task::value_type>{task};
+        t.copy_handlers(*this);
+        t.set_cont(handle_type::from_promise(*this));
+        return task_awaiter{std::move(t)};
     }
 
     template<effect E>
     [[nodiscard]]
     auto await_transform(E eff) noexcept -> effect_awaiter<E>
-        requires(detail::type_set<Es...>::template contains<E>)
+        requires(effect_types::template contains<E>)
     {
         return effect_awaiter<E>{ev_vec_.template get_handler<E>(), this, std::move(eff)};
     }

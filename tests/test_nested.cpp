@@ -1,6 +1,8 @@
 #include "corofx/check.hpp"
 #include "corofx/task.hpp"
 
+#include <utility>
+
 using namespace corofx;
 
 struct bar {
@@ -18,7 +20,7 @@ auto do_bar() -> task<int, bar> {
 }
 
 auto inner() -> task<int, bar> {
-    auto x = co_await do_bar().with(make_handler<bar>([](auto&& e, auto&&) -> task<int> {
+    auto x = co_await do_bar().with(handler_of<bar>([](auto&& e, auto&&) -> task<int> {
         check(e.x == marker0);
         co_return marker1;
     }));
@@ -27,15 +29,15 @@ auto inner() -> task<int, bar> {
 }
 
 auto outer() -> task<int, bar> {
-    auto x = co_await inner().with(
-        make_handler<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
+    auto x =
+        co_await inner().with(handler_of<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
     check(x == marker1);
     co_return x;
 }
 
 auto main() -> int {
-    auto x = inner().with(make_handler<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
+    auto x = inner().with(handler_of<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
     check(std::move(x)() == marker1);
-    auto y = outer().with(make_handler<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
+    auto y = outer().with(handler_of<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
     check(std::move(y)() == marker1);
 }

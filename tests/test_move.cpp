@@ -1,6 +1,8 @@
 #include "corofx/check.hpp"
 #include "corofx/task.hpp"
 
+#include <cstddef>
+#include <utility>
 #include <vector>
 
 using namespace corofx;
@@ -29,7 +31,7 @@ auto do_bar() -> task<vec, bar> {
 
 auto main() -> int {
     auto i = std::size_t{};
-    auto res = do_bar().with(make_handler<bar>([&i](auto&& b, auto&& resume) -> task<vec> {
+    auto res = do_bar().with(handler_of<bar>([&i](auto&& b, auto&& resume) -> task<vec> {
         check(b.x.size() == ++i);
         co_return resume(std::move(b.x));
     }));

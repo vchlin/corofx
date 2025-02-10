@@ -1,6 +1,8 @@
 #include "corofx/check.hpp"
 #include "corofx/task.hpp"
 
+#include <utility>
+
 using namespace corofx;
 
 struct bar {
@@ -20,7 +22,7 @@ auto do_bar() -> task<int, bar> {
 }
 
 auto inner() -> task<int, bar> {
-    std::ignore = co_await do_bar().with(make_handler<bar>([](auto&& e, auto&&) -> task<int, bar> {
+    std::ignore = co_await do_bar().with(handler_of<bar>([](auto&& e, auto&&) -> task<int, bar> {
         check(e.x == marker0);
         co_await bar{marker1};
         check_unreachable();
@@ -29,7 +31,7 @@ auto inner() -> task<int, bar> {
 }
 
 auto outer() -> task<int, bar> {
-    auto x = co_await inner().with(make_handler<bar>([](auto&& e, auto&&) -> task<int> {
+    auto x = co_await inner().with(handler_of<bar>([](auto&& e, auto&&) -> task<int> {
         check(e.x == marker1);
         co_return marker2;
     }));
@@ -38,9 +40,9 @@ auto outer() -> task<int, bar> {
 }
 
 auto main() -> int {
-    auto x = outer().with(make_handler<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
+    auto x = outer().with(handler_of<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
     check(std::move(x)() == marker2);
-    auto y = inner().with(make_handler<bar>([](auto&& e, auto&&) -> task<int> {
+    auto y = inner().with(handler_of<bar>([](auto&& e, auto&&) -> task<int> {
         check(e.x == marker1);
         co_return marker3;
     }));

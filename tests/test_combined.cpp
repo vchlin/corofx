@@ -1,6 +1,8 @@
 #include "corofx/check.hpp"
 #include "corofx/task.hpp"
 
+#include <utility>
+
 using namespace corofx;
 
 struct foo {
@@ -27,7 +29,7 @@ auto do_something() -> task<int, foo, bar> {
 
 auto inner() -> task<int, bar, foo> {
     auto x = co_await do_something().with(
-        make_handler<bar>([](auto&& b, auto&& resume) -> task<int, foo, bar> {
+        handler_of<bar>([](auto&& b, auto&& resume) -> task<int, foo, bar> {
             check(b.x == marker0);
             check(co_await foo{marker0} == marker1);
             check(co_await bar{marker1} == marker0);
@@ -38,7 +40,7 @@ auto inner() -> task<int, bar, foo> {
 
 auto main() -> int {
     auto res = inner().with(
-        make_handler<foo>([](auto&& f, auto&& resume) -> task<int> {
+        handler_of<foo>([](auto&& f, auto&& resume) -> task<int> {
             switch (f.x) {
             case marker0:
                 co_return resume(marker1);
@@ -47,7 +49,7 @@ auto main() -> int {
             }
             check_unreachable();
         }),
-        make_handler<bar>([](auto&& b, auto&& resume) -> task<int> {
+        handler_of<bar>([](auto&& b, auto&& resume) -> task<int> {
             check(b.x == marker1);
             co_return resume(marker0);
         }));

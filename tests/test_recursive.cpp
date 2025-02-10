@@ -1,6 +1,8 @@
 #include "corofx/check.hpp"
 #include "corofx/task.hpp"
 
+#include <utility>
+
 using namespace corofx;
 
 struct bar {
@@ -21,7 +23,7 @@ auto do_bar() -> task<int, bar> {
 
 auto main() -> int {
     auto i = 0;
-    auto res = do_bar().with(make_handler<bar>([&i](auto&& b, auto&& resume) -> task<int> {
+    auto res = do_bar().with(handler_of<bar>([&i](auto&& b, auto&& resume) -> task<int> {
         check(b.x == i);
         ++i;
         co_return resume(b.x);
