@@ -12,6 +12,7 @@ struct bar {
 constexpr auto marker0 = __LINE__;
 constexpr auto marker1 = __LINE__;
 constexpr auto marker2 = __LINE__;
+constexpr auto marker3 = __LINE__;
 
 auto do_bar() -> task<int, bar> {
     co_await bar{marker0};
@@ -19,8 +20,8 @@ auto do_bar() -> task<int, bar> {
 }
 
 auto inner() -> task<int, bar> {
-    std::ignore = co_await do_bar().with(make_handler<bar>([](auto&& b, auto&&) -> task<int, bar> {
-        check(b.x == marker0);
+    std::ignore = co_await do_bar().with(make_handler<bar>([](auto&& e, auto&&) -> task<int, bar> {
+        check(e.x == marker0);
         co_await bar{marker1};
         check_unreachable();
     }));
@@ -28,8 +29,8 @@ auto inner() -> task<int, bar> {
 }
 
 auto outer() -> task<int, bar> {
-    auto x = co_await inner().with(make_handler<bar>([](auto&& b, auto&&) -> task<int> {
-        check(b.x == marker1);
+    auto x = co_await inner().with(make_handler<bar>([](auto&& e, auto&&) -> task<int> {
+        check(e.x == marker1);
         co_return marker2;
     }));
     check(x == marker2);
@@ -37,6 +38,11 @@ auto outer() -> task<int, bar> {
 }
 
 auto main() -> int {
-    auto res = outer().with(make_handler<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
-    check(std::move(res)() == marker2);
+    auto x = outer().with(make_handler<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
+    check(std::move(x)() == marker2);
+    auto y = inner().with(make_handler<bar>([](auto&& e, auto&&) -> task<int> {
+        check(e.x == marker1);
+        co_return marker3;
+    }));
+    check(std::move(y)() == marker3);
 }

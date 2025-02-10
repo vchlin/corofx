@@ -27,7 +27,6 @@ target_sources(CoroFX
     FILES
         include/corofx/check.hpp
         include/corofx/config.hpp
-        include/corofx/detail/type_id.hpp
         include/corofx/detail/type_set.hpp
         include/corofx/effect.hpp
         include/corofx/promise.hpp
@@ -35,7 +34,6 @@ target_sources(CoroFX
         include/corofx/trace.hpp
     PRIVATE
         src/check.cpp
-        src/detail/type_id.cpp
         src/detail/type_set.cpp
         src/effect.cpp
         src/promise.cpp
@@ -45,12 +43,10 @@ target_sources(CoroFX
 if(PROJECT_IS_TOP_LEVEL)
     target_compile_definitions(CoroFX PUBLIC
         $<$<CXX_COMPILER_ID:Clang,GNU>:
-            $<$<CONFIG:Release>:NDEBUG>
             _FORTIFY_SOURCE=3
             _GLIBCXX_ASSERTIONS>)
-    target_compile_options(CoroFX INTERFACE
+    target_compile_options(CoroFX PUBLIC
         $<$<CXX_COMPILER_ID:Clang,GNU>:
-            $<$<CONFIG:Release>:-O2>
             -Wall -Wconversion -Werror -Wextra -Wformat=2 -Wpedantic -Wsign-conversion
             -fno-rtti -fno-semantic-interposition
             $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address>
@@ -60,8 +56,10 @@ if(PROJECT_IS_TOP_LEVEL)
             -fstack-protector-strong
             -fstrict-flex-arrays=3
             -ftrivial-auto-var-init=zero
-            -fvisibility=hidden>)
-    target_link_options(CoroFX INTERFACE
+            -fvisibility=hidden>
+        $<$<CXX_COMPILER_ID:MSVC>:
+            $<$<BOOL:${COROFX_ENABLE_ASAN}>:/fsanitize=address>>)
+    target_link_options(CoroFX PUBLIC
         $<$<CXX_COMPILER_ID:Clang,GNU>:
             $<$<CONFIG:Release>:-s>
             $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address>

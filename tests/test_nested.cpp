@@ -18,8 +18,8 @@ auto do_bar() -> task<int, bar> {
 }
 
 auto inner() -> task<int, bar> {
-    auto x = co_await do_bar().with(make_handler<bar>([](auto&& b, auto&&) -> task<int> {
-        check(b.x == marker0);
+    auto x = co_await do_bar().with(make_handler<bar>([](auto&& e, auto&&) -> task<int> {
+        check(e.x == marker0);
         co_return marker1;
     }));
     check(x == marker1);
@@ -27,13 +27,15 @@ auto inner() -> task<int, bar> {
 }
 
 auto outer() -> task<int, bar> {
-    auto x =
-        co_await inner().with(make_handler<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
+    auto x = co_await inner().with(
+        make_handler<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
     check(x == marker1);
     co_return x;
 }
 
 auto main() -> int {
-    auto res = outer().with(make_handler<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
-    check(std::move(res)() == marker1);
+    auto x = inner().with(make_handler<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
+    check(std::move(x)() == marker1);
+    auto y = outer().with(make_handler<bar>([](auto&&...) -> task<int> { check_unreachable(); }));
+    check(std::move(y)() == marker1);
 }

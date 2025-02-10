@@ -6,6 +6,7 @@
 
 #include <concepts>
 #include <coroutine>
+#include <tuple>
 #include <utility>
 
 namespace corofx {
@@ -20,20 +21,75 @@ public:
 
     handled_task(Task task, Hs... handlers) noexcept
         : task_{std::move(task)}, handlers_{std::move(handlers)...} {
-        task_.frame_.promise().set_handlers(handlers_);
+        bind_handlers();
     }
 
+    handled_task(handled_task const&) = delete;
+
+    handled_task(handled_task&& that) noexcept
+        : task_{std::move(that.task_)}, handlers_{std::move(that.handlers_)} {
+        bind_handlers();
+    }
+
+    ~handled_task() = default;
+
+    auto operator=(handled_task const&) -> handled_task& = delete;
+
+    auto operator=(handled_task&& that) noexcept -> handled_task& {
+        handled_task{std::move(that)}.swap(*this);
+        return *this;
+    }
+
+    [[nodiscard]]
     auto operator()() && noexcept -> value_type
         requires(effect_types::empty)
     {
-        return task_.call_unchecked();
+        if constexpr (std::is_void_v<value_type>) {
+            task_.call_unchecked();
+        } else {
+            auto output = std::optional<value_type>{};
+            set_output(output);
+            task_.call_unchecked(output);
+            return std::move(*output);
+        }
     }
 
 private:
-    friend promise_base;
+    template<typename T, effect... Es>
+    friend class task;
+    template<typename T>
+    friend class task_awaiter;
+
+    auto bind_handlers() noexcept -> void {
+        std::apply([&](auto&... hs) { (task_.frame_.promise().set_handler(&hs), ...); }, handlers_);
+    }
+
+    template<typename Task2>
+    auto copy_handlers(Task2& t) noexcept -> void {
+        task_type::effect_types::template subtract<typename Hs::effect_type...>::apply(
+            [&]<effect... Es>() {
+                (task_.frame_.promise().set_handler(t.template get_handler<Es>()), ...);
+            });
+        std::apply([&](auto&... hs) { (hs.copy_handlers(t), ...); }, handlers_);
+    }
+
+    auto set_cont(promise_impl<value_type>& cont) noexcept -> void {
+        task_.frame_.promise().set_cont(&cont);
+        std::apply([&](auto&... hs) { (hs.set_cont(&cont), ...); }, handlers_);
+    }
+
+    [[nodiscard]]
+    auto get_promise() noexcept -> task_type::promise_type& {
+        return task_.frame_.promise();
+    }
+
+    auto set_output(std::optional<value_type>& output) noexcept -> void {
+        task_.frame_.promise().set_output(output);
+        std::apply([&](auto&... hs) { (hs.set_output(output), ...); }, handlers_);
+    }
 
     task_type task_;
-    handler_list_impl<Hs...> handlers_;
+    std::tuple<Hs...> handlers_;
 };
 
 // Represents a unit of computation that is potentially effectful.
@@ -60,29 +116,38 @@ public:
         return *this;
     }
 
+    [[nodiscard]]
     auto operator()() && noexcept -> T
         requires(sizeof...(Es) == 0)
     {
-        return call_unchecked();
+        if constexpr (std::is_void_v<T>) {
+            call_unchecked();
+        } else {
+            auto output = std::optional<T>{};
+            call_unchecked(output);
+            return std::move(*output);
+        }
     }
 
     // Runs the task with the provided handlers when awaited.
     template<typename... Hs>
+    [[nodiscard]]
     auto with(Hs... handlers) && noexcept -> handled_task<task, Hs...>
         requires(
             detail::type_set<Es...>::template contains<
-                detail::type_set<typename Hs::effect_type...>> &&
-            (std::same_as<value_type, typename Hs::task_type::value_type> && ...))
+                detail::type_set<typename Hs::effect_type...>> and
+            (std::same_as<T, typename Hs::task_type::value_type> and ...))
     {
         return handled_task{std::move(*this), std::move(handlers)...};
     }
 
 private:
-    friend promise_base;
     template<effect E, typename F>
-    friend class handler;
+    friend class handler_impl;
     template<typename Task, typename... Hs>
     friend class handled_task;
+    template<typename U>
+    friend class task_awaiter;
 
     explicit task(handle_type h) noexcept : frame_{h} {}
 
@@ -96,9 +161,28 @@ private:
         return std::exchange(frame_, {});
     }
 
-    auto call_unchecked() noexcept -> T {
+    [[nodiscard]]
+    auto get_promise() noexcept -> promise_type& {
+        return frame_.promise();
+    }
+
+    auto set_output(std::optional<T>& output) noexcept -> void
+        requires(not std::is_void_v<T>)
+    {
+        frame_.promise().set_output(output);
+    }
+
+    auto call_unchecked() noexcept -> void
+        requires(std::is_void_v<T>)
+    {
         frame_.resume();
-        return frame_.promise().take_value();
+    }
+
+    auto call_unchecked(std::optional<T>& output) noexcept -> void
+        requires(not std::is_void_v<T>)
+    {
+        set_output(output);
+        frame_.resume();
     }
 
     handle_type frame_{};
@@ -107,35 +191,61 @@ private:
 template<typename T, effect... Es>
 class task<T, Es...>::promise_type : public promise_impl<T> {
 public:
-    using value_type = T;
-
     promise_type() noexcept : promise_impl<T>{handle_type::from_promise(*this)} {}
 
-    auto get_return_object() noexcept -> task { return task{handle_type::from_promise(*this)}; }
+    [[nodiscard]]
+    auto get_return_object() noexcept -> task {
+        return task{handle_type::from_promise(*this)};
+    }
 
     template<typename U, effect... Gs>
-    auto await_transform(task<U, Gs...> task) noexcept
-        -> promise_base::task_awaiter<typename corofx::task<U, Gs...>::promise_type>
+    [[nodiscard]]
+    auto await_transform(task<U, Gs...>&& task) noexcept -> task_awaiter<U>
         requires(detail::type_set<Es...>::template contains<detail::type_set<Gs...>>)
     {
-        return promise_base::task_awaiter{task.frame_.promise()};
+        auto& p = task.frame_.promise();
+        p.copy_handlers(*this);
+        return task_awaiter<U>{task};
     }
 
     template<std::movable Task, typename... Hs>
-    auto await_transform(handled_task<Task, Hs...> ht) noexcept
-        -> promise_base::handled_task_awaiter<handled_task<Task, Hs...>>
+    [[nodiscard]]
+    auto await_transform(handled_task<Task, Hs...>&& task) noexcept
+        -> task_awaiter<typename Task::value_type>
         requires(detail::type_set<Es...>::template contains<
                  typename handled_task<Task, Hs...>::effect_types>)
     {
-        return promise_base::handled_task_awaiter<handled_task<Task, Hs...>>{std::move(ht)};
+        task.copy_handlers(*this);
+        task.set_cont(*this);
+        return task_awaiter<typename Task::value_type>{task};
     }
 
     template<effect E>
+    [[nodiscard]]
     auto await_transform(E eff) noexcept -> effect_awaiter<E>
         requires(detail::type_set<Es...>::template contains<E>)
     {
-        return effect_awaiter<E>{this, std::move(eff)};
+        return effect_awaiter<E>{ev_vec_.template get_handler<E>(), this, std::move(eff)};
     }
+
+    template<effect E>
+    auto set_handler(handler<E>* h) noexcept -> void {
+        ev_vec_.set_handler(h);
+    }
+
+    template<effect E>
+    [[nodiscard]]
+    auto get_handler() const noexcept -> handler<E>* {
+        return ev_vec_.template get_handler<E>();
+    }
+
+    template<typename Task>
+    auto copy_handlers(Task& t) noexcept -> void {
+        (set_handler(t.template get_handler<Es>()), ...);
+    }
+
+private:
+    evidence_vec<Es...> ev_vec_;
 };
 
 } // namespace corofx
