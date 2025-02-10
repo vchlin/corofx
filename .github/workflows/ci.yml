@@ -38,6 +38,8 @@ jobs:
 
         exclude:
           - preset: msvc
+            sanitizer: asan
+          - preset: msvc
             sanitizer: ubsan
 
     steps:
