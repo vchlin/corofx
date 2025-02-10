@@ -200,7 +200,7 @@ public:
 
     template<typename U, effect... Gs>
     [[nodiscard]]
-    auto await_transform(task<U, Gs...>& task) noexcept -> task_awaiter<U>
+    auto await_transform(task<U, Gs...>&& task) noexcept -> task_awaiter<U>
         requires(detail::type_set<Es...>::template contains<detail::type_set<Gs...>>)
     {
         auto& p = task.frame_.promise();
@@ -210,7 +210,7 @@ public:
 
     template<std::movable Task, typename... Hs>
     [[nodiscard]]
-    auto await_transform(handled_task<Task, Hs...>& task) noexcept
+    auto await_transform(handled_task<Task, Hs...>&& task) noexcept
         -> task_awaiter<typename Task::value_type>
         requires(detail::type_set<Es...>::template contains<
                  typename handled_task<Task, Hs...>::effect_types>)
