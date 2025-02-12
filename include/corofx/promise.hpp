@@ -146,7 +146,7 @@ protected:
     ~promise_base() = default;
 
 private:
-    std::coroutine_handle<> const frame_; // TODO: Remove
+    std::coroutine_handle<> const frame_; // TODO: Remove.
     std::coroutine_handle<> cont_;
 };
 
