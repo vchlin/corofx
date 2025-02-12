@@ -21,13 +21,13 @@ auto raise_const() -> task<int> {
     auto divide_add = []() -> task<int, raise> {
         co_return 8 + co_await safe_divide(1, 0); // NOLINT
     };
-    co_return co_await divide_add().with(make_handler<raise>([](auto&& r, auto&&) -> task<int> {
-        std::cout << "error: " << r.msg << std::endl;
+    co_return co_await divide_add().with(handler_of<raise>([](auto&& r, auto&&) -> task<int> {
+        std::cout << "error: " << r.msg << "\n";
         co_return 42; // NOLINT
     }));
 }
 
 auto main() -> int {
     auto x = raise_const()();
-    std::cout << "x: " << x << std::endl;
+    std::cout << "x: " << x << "\n";
 }

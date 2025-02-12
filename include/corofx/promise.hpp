@@ -29,9 +29,9 @@ private:
     friend class resumer;
     friend promise_base;
 
-    explicit resumer_tag(promise_base& resume) noexcept : resume_{resume} {}
+    explicit resumer_tag(std::coroutine_handle<> resume) noexcept : resume_{resume} {}
 
-    promise_base& resume_;
+    std::coroutine_handle<> resume_;
 };
 
 template<effect E>
@@ -56,10 +56,10 @@ public:
 private:
     friend class effect_awaiter<E>;
 
-    explicit resumer(promise_base& resume, effect_awaiter<E>& effect) noexcept
+    explicit resumer(std::coroutine_handle<> resume, effect_awaiter<E>& effect) noexcept
         : resume_{resume}, effect_{effect} {}
 
-    promise_base& resume_;
+    std::coroutine_handle<> resume_;
     effect_awaiter<E>& effect_;
 };
 
@@ -99,7 +99,7 @@ public:
         template<std::derived_from<promise_base> U>
         [[nodiscard]]
         auto await_suspend(std::coroutine_handle<U> frame) noexcept -> std::coroutine_handle<> {
-            if (auto* k = frame.promise().cont_) return k->frame_;
+            if (auto k = frame.promise().cont_) return k;
             return std::noop_coroutine();
         }
     };
@@ -114,7 +114,7 @@ public:
         return {};
     }
 
-    auto return_value(resumer_tag const& resume) noexcept -> void { set_cont(&resume.resume_); }
+    auto return_value(resumer_tag const& resume) noexcept -> void { set_cont(resume.resume_); }
 
     [[noreturn]]
     auto unhandled_exception() noexcept -> void {
@@ -131,13 +131,13 @@ public:
         return frame_;
     }
 
-    auto set_cont(promise_base* cont) noexcept -> std::coroutine_handle<> {
+    auto set_cont(std::coroutine_handle<> cont) noexcept -> std::coroutine_handle<> {
         cont_ = cont;
         return frame_;
     }
 
     [[nodiscard]]
-    auto get_cont() const noexcept -> promise_base* {
+    auto get_cont() const noexcept -> std::coroutine_handle<> {
         return cont_;
     }
 
@@ -147,7 +147,7 @@ protected:
 
 private:
     std::coroutine_handle<> const frame_; // TODO: Remove
-    promise_base* cont_{};
+    std::coroutine_handle<> cont_;
 };
 
 template<>
@@ -159,28 +159,32 @@ public:
     constexpr auto return_value(std::monostate) noexcept -> void {}
 };
 
-template<typename T = void>
-class task_awaiter;
-
 template<typename T>
 class promise_impl : public promise_base {
 public:
     using promise_base::promise_base;
     using promise_base::return_value;
 
-    auto return_value(T value) noexcept -> void { *value_ = std::move(value); }
+    auto return_value(T value) noexcept -> void { *output_ = std::move(value); }
 
-    auto set_output(std::optional<T>& output) noexcept -> void { value_ = &output; }
+    auto set_output(std::optional<T>& output) noexcept -> void { output_ = &output; }
 
 private:
-    std::optional<T>* value_{};
+    std::optional<T>* output_{};
 };
 
-template<>
-class task_awaiter<> : public std::suspend_always {
+template<typename T>
+using value_holder = std::conditional_t<std::is_void_v<T>, std::monostate, std::optional<T>>;
+
+template<typename Task>
+class task_awaiter : public std::suspend_always {
 public:
-    template<typename Task>
-    explicit task_awaiter(Task& t) noexcept : p_{t.get_promise()} {}
+    using value_type = Task::value_type;
+
+    explicit task_awaiter(Task t) noexcept : task_{std::move(t)}, p_{task_.get_promise()} {
+        if constexpr (not std::is_void_v<value_type>) task_.set_output(value_);
+    }
+
     task_awaiter(task_awaiter const&) = delete;
     task_awaiter(task_awaiter&&) = delete;
     ~task_awaiter() = default;
@@ -190,25 +194,17 @@ public:
     template<std::derived_from<promise_base> U>
     [[nodiscard]]
     auto await_suspend(std::coroutine_handle<U> frame) noexcept -> std::coroutine_handle<> {
-        return p_.set_cont(&frame.promise());
+        return p_.set_cont(frame);
+    }
+
+    auto await_resume() noexcept -> value_type {
+        if constexpr (not std::is_void_v<value_type>) return std::move(*value_);
     }
 
 private:
+    Task task_;
     promise_base& p_;
-};
-
-template<typename T>
-class task_awaiter : public task_awaiter<> {
-public:
-    template<typename Task>
-    explicit task_awaiter(Task& t) noexcept : task_awaiter<>{t} {
-        t.set_output(output_);
-    }
-
-    auto await_resume() noexcept -> T { return std::move(*output_); }
-
-private:
-    std::optional<T> output_;
+    value_holder<value_type> value_;
 };
 
 template<effect E>
@@ -226,7 +222,7 @@ public:
     explicit effect_awaiter(handler<E>* h, promise_base* p, E eff) noexcept
         : handler_{h},
           eff_{std::move(eff)},
-          resumer_{*p, *this},
+          resumer_{p->get_frame(), *this},
           task_{h->handle(std::move(eff_), resumer_)} {}
 
     template<std::derived_from<promise_base> U>
@@ -235,16 +231,16 @@ public:
         return task_.promise_->get_frame();
     }
 
-    auto await_resume() noexcept -> value_type { return std::move(*output_); }
+    auto await_resume() noexcept -> value_type { return std::move(*value_); }
 
-    auto set_value(value_type value) noexcept -> void { output_ = std::move(value); }
+    auto set_value(value_type value) noexcept -> void { value_ = std::move(value); }
 
 private:
     handler<E>* handler_{};
     E eff_; // NOTE: This effect will not be moved until the task starts running.
     resumer<E> resumer_;
     untyped_task task_;
-    std::optional<value_type> output_;
+    std::optional<value_type> value_;
 };
 
 template<effect E>
@@ -273,9 +269,6 @@ public:
     }
 };
 
-template<typename T>
-using value_holder = std::conditional_t<std::is_void_v<T>, std::monostate, std::optional<T>*>;
-
 // An effect handler entry.
 template<effect E, typename F>
 class handler_impl : public handler<E> {
@@ -290,7 +283,7 @@ public:
     auto handle(E&& eff, resumer<E>& resume) noexcept -> untyped_task final {
         auto task = fn_(std::move(eff), resume);
         auto& p = task.release().promise();
-        p.set_cont(promise_);
+        p.set_cont(cont_);
         if constexpr (not std::is_void_v<value_type>) p.set_output(*output_);
         task_type::effect_types::apply(
             [&]<effect... Es>() { (p.set_handler(ev_vec_.template get_handler<Es>()), ...); });
@@ -305,9 +298,7 @@ public:
         }
     }
 
-    auto set_cont(promise_impl<typename task_type::value_type>* p) noexcept -> void {
-        promise_ = p;
-    }
+    auto set_cont(std::coroutine_handle<> cont) noexcept -> void { cont_ = cont; }
 
     auto set_output(std::optional<value_type>& output) noexcept -> void
         requires(not std::is_void_v<value_type>)
@@ -317,15 +308,15 @@ public:
 
 private:
     F fn_;
-    promise_impl<value_type>* promise_{};
-    value_holder<value_type> output_;
+    std::coroutine_handle<> cont_;
+    value_holder<value_type>* output_{};
     task_type::effect_types::template unpack_to<evidence_vec> ev_vec_;
 };
 
 // Creates an effect handler entry.
 template<effect E, typename F>
 [[nodiscard]]
-auto make_handler(F fn) noexcept -> handler_impl<E, F> {
+auto handler_of(F fn) noexcept -> handler_impl<E, F> {
     return handler_impl<E, F>{std::move(fn)};
 }
 

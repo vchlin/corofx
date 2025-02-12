@@ -2,6 +2,7 @@ Checks: >
   -*,
   bugprone-*,
   cert-*,
+  clang-analyzer-*,
   concurrency-*,
   cppcoreguidelines-*,
   misc-*,
