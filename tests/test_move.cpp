@@ -31,9 +31,9 @@ auto do_bar() -> task<vec, bar> {
 
 auto main() -> int {
     auto i = std::size_t{};
-    auto res = do_bar().with(handler_of<bar>([&i](auto&& b, auto&& resume) -> task<vec> {
-        check(b.x.size() == ++i);
-        co_return resume(std::move(b.x));
+    auto res = do_bar().with(handler_of<bar>([&i](auto&& e, auto&& resume) -> task<vec> {
+        check(e.x.size() == ++i);
+        co_return resume(std::move(e.x));
     }));
     check(std::move(res)().size() == len);
 }

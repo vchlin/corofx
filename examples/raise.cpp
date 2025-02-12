@@ -21,8 +21,8 @@ auto raise_const() -> task<int> {
     auto divide_add = []() -> task<int, raise> {
         co_return 8 + co_await safe_divide(1, 0); // NOLINT
     };
-    co_return co_await divide_add().with(handler_of<raise>([](auto&& r, auto&&) -> task<int> {
-        std::cout << "error: " << r.msg << "\n";
+    co_return co_await divide_add().with(handler_of<raise>([](auto&& e, auto&&) -> task<int> {
+        std::cout << "error: " << e.msg << "\n";
         co_return 42; // NOLINT
     }));
 }

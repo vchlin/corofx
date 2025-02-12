@@ -86,8 +86,8 @@ private:
     }
 
     [[nodiscard]]
-    auto get_promise() noexcept -> task_type::promise_type& {
-        return task_.frame_.promise();
+    auto get_frame() const noexcept -> task_type::handle_type {
+        return task_.frame_;
     }
 
     auto set_output(std::optional<value_type>& output) noexcept -> void {
@@ -170,8 +170,8 @@ private:
     }
 
     [[nodiscard]]
-    auto get_promise() noexcept -> promise_type& {
-        return frame_.promise();
+    auto get_frame() const noexcept -> handle_type {
+        return frame_;
     }
 
     auto set_output(std::optional<T>& output) noexcept -> void
@@ -199,8 +199,6 @@ private:
 template<typename T, effect... Es>
 class task<T, Es...>::promise_type : public promise_impl<T> {
 public:
-    promise_type() noexcept : promise_impl<T>{handle_type::from_promise(*this)} {}
-
     [[nodiscard]]
     auto get_return_object() noexcept -> task {
         return task{handle_type::from_promise(*this)};
@@ -231,7 +229,8 @@ public:
     auto await_transform(E eff) noexcept -> effect_awaiter<E>
         requires(effect_types::template contains<E>)
     {
-        return effect_awaiter<E>{ev_vec_.template get_handler<E>(), this, std::move(eff)};
+        return effect_awaiter<E>{
+            ev_vec_.template get_handler<E>(), handle_type::from_promise(*this), std::move(eff)};
     }
 
     template<effect E>
