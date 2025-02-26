@@ -50,9 +50,9 @@ auto traverse(std::vector<int> xs) -> task<void, yield> {
 
 auto print_elems() -> task<void> {
     co_await traverse(std::vector{1, 2, 3, 4})
-        .with(handler_of<yield>([](auto&& y, auto&& resume) -> task<void> {
-            std::cout << "yielded " << y.i << "\n";
-            co_return resume(y.i <= 2);
+        .with(handler_of<yield>([](auto&& e, auto&& resume) -> task<void> {
+            std::cout << "yielded " << e.i << "\n";
+            co_return resume(e.i <= 2);
         }));
     co_return {};
 }

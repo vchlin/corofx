@@ -29,8 +29,8 @@ auto do_something() -> task<int, foo, bar> {
 
 auto inner() -> task<int, bar, foo> {
     auto x = co_await do_something().with(
-        handler_of<bar>([](auto&& b, auto&& resume) -> task<int, foo, bar> {
-            check(b.x == marker0);
+        handler_of<bar>([](auto&& e, auto&& resume) -> task<int, foo, bar> {
+            check(e.x == marker0);
             check(co_await foo{marker0} == marker1);
             check(co_await bar{marker1} == marker0);
             co_return resume(marker1);
@@ -40,8 +40,8 @@ auto inner() -> task<int, bar, foo> {
 
 auto main() -> int {
     auto res = inner().with(
-        handler_of<foo>([](auto&& f, auto&& resume) -> task<int> {
-            switch (f.x) {
+        handler_of<foo>([](auto&& e, auto&& resume) -> task<int> {
+            switch (e.x) {
             case marker0:
                 co_return resume(marker1);
             case marker1:
@@ -49,8 +49,8 @@ auto main() -> int {
             }
             check_unreachable();
         }),
-        handler_of<bar>([](auto&& b, auto&& resume) -> task<int> {
-            check(b.x == marker1);
+        handler_of<bar>([](auto&& e, auto&& resume) -> task<int> {
+            check(e.x == marker1);
             co_return resume(marker0);
         }));
     check(std::move(res)() == marker2);

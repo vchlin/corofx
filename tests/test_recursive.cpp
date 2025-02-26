@@ -23,10 +23,10 @@ auto do_bar() -> task<int, bar> {
 
 auto main() -> int {
     auto i = 0;
-    auto res = do_bar().with(handler_of<bar>([&i](auto&& b, auto&& resume) -> task<int> {
-        check(b.x == i);
+    auto res = do_bar().with(handler_of<bar>([&i](auto&& e, auto&& resume) -> task<int> {
+        check(e.x == i);
         ++i;
-        co_return resume(b.x);
+        co_return resume(e.x);
     }));
     check(std::move(res)() == large_value);
 }
