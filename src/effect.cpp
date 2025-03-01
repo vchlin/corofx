@@ -1,1 +1,1 @@
-#include "corofx/effect.hpp"
+#include "corofx/effect.hpp" // IWYU pragma: keep

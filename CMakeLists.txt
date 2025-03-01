@@ -29,6 +29,8 @@ target_sources(CoroFX
         include/corofx/config.hpp
         include/corofx/detail/type_set.hpp
         include/corofx/effect.hpp
+        include/corofx/frame.hpp
+        include/corofx/handler.hpp
         include/corofx/promise.hpp
         include/corofx/task.hpp
         include/corofx/trace.hpp
@@ -36,6 +38,8 @@ target_sources(CoroFX
         src/check.cpp
         src/detail/type_set.cpp
         src/effect.cpp
+        src/frame.cpp
+        src/handler.cpp
         src/promise.cpp
         src/task.cpp
         src/trace.cpp)
