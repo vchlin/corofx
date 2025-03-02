@@ -55,7 +55,7 @@ public:
         if constexpr (not std::is_void_v<value_type>) p.set_output(*output_);
         task_type::effect_types::apply(
             [&]<effect... Es>() { (p.set_handler(ev_vec_.template get_handler<Es>()), ...); });
-        return task;
+        return std::move(task);
     }
 
     template<typename Task>
