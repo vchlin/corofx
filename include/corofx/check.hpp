@@ -3,7 +3,7 @@
 #include <source_location>
 #include <string_view>
 
-#include "corofx/config.hpp"
+#include "config.hpp"
 
 namespace corofx {
 

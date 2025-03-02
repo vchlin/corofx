@@ -12,6 +12,7 @@ BinPackArguments: false
 BinPackParameters: false
 BreakAfterAttributes: Always
 ColumnLimit: 100
+IncludeBlocks: Regroup
 IndentWidth: 4
 InsertNewlineAtEOF: true
 PackConstructorInitializers: NextLine

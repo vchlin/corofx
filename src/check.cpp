@@ -18,7 +18,13 @@ auto check(bool pred, std::source_location loc) noexcept -> void {
 }
 
 auto check_unreachable(std::source_location loc) noexcept -> void {
-    trace(loc.file_name(), ":", loc.line(), ": ", loc.function_name(), ": unreachable statement reached");
+    trace(
+        loc.file_name(),
+        ":",
+        loc.line(),
+        ": ",
+        loc.function_name(),
+        ": unreachable statement reached");
     std::terminate();
 }
 

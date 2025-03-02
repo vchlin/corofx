@@ -1,7 +1,8 @@
 #pragma once
 
-#include "corofx/effect.hpp"
 #include "detail/type_set.hpp"
+#include "effect.hpp"
+#include "handler.hpp"
 #include "promise.hpp"
 
 #include <coroutine>
@@ -68,30 +69,31 @@ private:
     friend class task_awaiter;
 
     auto bind_handlers() noexcept -> void {
-        std::apply([&](auto&... hs) { (task_.frame_.promise().set_handler(&hs), ...); }, handlers_);
+        std::apply(
+            [&](auto&... hs) { (task_.frame_->promise().set_handler(&hs), ...); }, handlers_);
     }
 
     template<typename Task2>
     auto copy_handlers(Task2& t) noexcept -> void {
         task_type::effect_types::template subtract<typename Hs::effect_type...>::apply(
             [&]<effect... Es>() {
-                (task_.frame_.promise().set_handler(t.template get_handler<Es>()), ...);
+                (task_.frame_->promise().set_handler(t.template get_handler<Es>()), ...);
             });
         std::apply([&](auto&... hs) { (hs.copy_handlers(t), ...); }, handlers_);
     }
 
     auto set_cont(std::coroutine_handle<> cont) noexcept -> void {
-        task_.frame_.promise().set_cont(cont);
+        task_.frame_->promise().set_cont(cont);
         std::apply([=](auto&... hs) { (hs.set_cont(cont), ...); }, handlers_);
     }
 
     [[nodiscard]]
     auto get_frame() const noexcept -> task_type::handle_type {
-        return task_.frame_;
+        return *task_.frame_;
     }
 
     auto set_output(std::optional<value_type>& output) noexcept -> void {
-        task_.frame_.promise().set_output(output);
+        task_.frame_->promise().set_output(output);
         std::apply([&](auto&... hs) { (hs.set_output(output), ...); }, handlers_);
     }
 
@@ -109,21 +111,6 @@ public:
     using value_type = T;
     using effect_types = detail::type_set<Es...>;
 
-    task(task const&) = delete;
-    task(task&& that) noexcept : frame_{std::exchange(that.frame_, {})} {}
-
-    ~task() {
-        if (frame_) frame_.destroy();
-    }
-
-    auto operator=(task const&) -> task& = delete;
-
-    auto operator=(task&& that) noexcept -> task& {
-        auto left = std::move(that);
-        swap(left, *this);
-        return *this;
-    }
-
     [[nodiscard]]
     auto operator()() && noexcept -> T
         requires(effect_types::empty)
@@ -137,10 +124,7 @@ public:
         }
     }
 
-    friend auto swap(task& left, task& right) noexcept -> void {
-        using std::swap;
-        swap(left.frame_, right.frame_);
-    }
+    operator frame<>() && noexcept { return std::move(frame_); }
 
     // Runs the task with the provided handlers when awaited.
     // TODO: Disallow multiple handlers for the same effect?
@@ -165,35 +149,61 @@ private:
     explicit task(handle_type h) noexcept : frame_{h} {}
 
     [[nodiscard]]
-    auto release() noexcept -> handle_type {
-        return std::exchange(frame_, {});
-    }
-
-    [[nodiscard]]
     auto get_frame() const noexcept -> handle_type {
-        return frame_;
+        return *frame_;
     }
 
     auto set_output(std::optional<T>& output) noexcept -> void
         requires(not std::is_void_v<T>)
     {
-        frame_.promise().set_output(output);
+        frame_->promise().set_output(output);
     }
 
     auto call_unchecked() noexcept -> void
         requires(std::is_void_v<T>)
     {
-        frame_.resume();
+        frame_->resume();
     }
 
     auto call_unchecked(std::optional<T>& output) noexcept -> void
         requires(not std::is_void_v<T>)
     {
         set_output(output);
-        frame_.resume();
+        frame_->resume();
     }
 
-    handle_type frame_;
+    frame<promise_type> frame_;
+};
+
+template<typename Task>
+class task_awaiter : public std::suspend_always {
+public:
+    using value_type = Task::value_type;
+
+    explicit task_awaiter(Task t) noexcept : task_{std::move(t)} {
+        if constexpr (not std::is_void_v<value_type>) task_.set_output(value_);
+    }
+
+    task_awaiter(task_awaiter const&) = delete;
+    task_awaiter(task_awaiter&&) = delete;
+    ~task_awaiter() = default;
+    auto operator=(task_awaiter const&) -> task_awaiter& = delete;
+    auto operator=(task_awaiter&&) -> task_awaiter& = delete;
+
+    [[nodiscard]]
+    auto await_suspend(std::coroutine_handle<> frame) const noexcept -> std::coroutine_handle<> {
+        auto h = task_.get_frame();
+        h.promise().set_cont(frame);
+        return h;
+    }
+
+    auto await_resume() noexcept -> value_type {
+        if constexpr (not std::is_void_v<value_type>) return std::move(*value_);
+    }
+
+private:
+    Task task_;
+    value_holder<value_type> value_;
 };
 
 template<typename T, effect... Es>
@@ -209,7 +219,7 @@ public:
     auto await_transform(task<U, Gs...> t) noexcept -> task_awaiter<decltype(t)>
         requires(effect_types::template contains<typename decltype(t)::effect_types>)
     {
-        auto& p = t.frame_.promise();
+        auto& p = t.frame_->promise();
         p.copy_handlers(*this);
         return task_awaiter{std::move(t)};
     }
