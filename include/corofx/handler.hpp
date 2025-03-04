@@ -45,7 +45,7 @@ public:
     using task_type = std::invoke_result_t<F, E&&, resumer<E>&>;
     using value_type = task_type::value_type;
 
-    handler_impl(F fn) noexcept : handler<E>{}, fn_{std::move(fn)} {}
+    handler_impl(F fn) noexcept : fn_{std::move(fn)} {}
 
     [[nodiscard]]
     auto handle(E&& eff, resumer<E>& resume) noexcept -> frame<> final {

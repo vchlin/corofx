@@ -9,6 +9,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(AddExample)
 include(AddTest)
 
+option(COROFX_ENABLE_HARDENING "Enable hardening" ON)
+
 option(COROFX_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(COROFX_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 option(COROFX_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
@@ -47,20 +49,22 @@ target_sources(CoroFX
 if(PROJECT_IS_TOP_LEVEL)
     target_compile_definitions(CoroFX PUBLIC
         $<$<CXX_COMPILER_ID:Clang,GNU>:
-            _FORTIFY_SOURCE=3
-            _GLIBCXX_ASSERTIONS>)
+            $<$<BOOL:${COROFX_ENABLE_HARDENING}>:
+                _FORTIFY_SOURCE=3
+                _GLIBCXX_ASSERTIONS>>)
     target_compile_options(CoroFX PUBLIC
         $<$<CXX_COMPILER_ID:Clang,GNU>:
             -Wall -Wconversion -Werror -Wextra -Wformat=2 -Wpedantic -Wsign-conversion
             -fno-rtti -fno-semantic-interposition
-            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address>
-            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread>
-            $<$<BOOL:${COROFX_ENABLE_UBSAN}>:-fsanitize=undefined -fno-sanitize-recover>
-            -fstack-clash-protection
-            -fstack-protector-strong
             -fstrict-flex-arrays=3
             -ftrivial-auto-var-init=zero
-            -fvisibility=hidden>
+            -fvisibility=hidden
+            $<$<BOOL:${COROFX_ENABLE_HARDENING}>:
+                -fstack-clash-protection
+                -fstack-protector-strong>
+            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address>
+            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread>
+            $<$<BOOL:${COROFX_ENABLE_UBSAN}>:-fsanitize=undefined -fno-sanitize-recover>>
         $<$<CXX_COMPILER_ID:MSVC>:
             $<$<BOOL:${COROFX_ENABLE_ASAN}>:/fsanitize=address>>)
     target_link_options(CoroFX PUBLIC
