@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 #pragma once
 
 #include "effect.hpp"
@@ -37,6 +39,14 @@ public:
     }
 };
 
+template<typename T>
+concept tasklike = requires(T t) {
+    typename T::value_type;
+    typename T::effect_types;
+
+    // TODO: WIP.
+};
+
 // An effect handler entry.
 template<effect E, typename F>
 class handler_impl : public handler<E> {
@@ -45,7 +55,7 @@ public:
     using task_type = std::invoke_result_t<F, E&&, resumer<E>&>;
     using value_type = task_type::value_type;
 
-    handler_impl(F fn) noexcept : handler<E>{}, fn_{std::move(fn)} {}
+    handler_impl(F fn) noexcept : fn_{std::move(fn)} {}
 
     [[nodiscard]]
     auto handle(E&& eff, resumer<E>& resume) noexcept -> frame<> final {

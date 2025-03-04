@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 #include "corofx/check.hpp"
 
 #include "corofx/trace.hpp"
