@@ -26,7 +26,7 @@ constexpr auto len = 10;
 constexpr auto marker = __LINE__;
 
 auto do_foo() -> task<std::unique_ptr<int>, foo> {
-    auto x = std::make_unique<int>(marker); // NOLINT
+    auto x = std::make_unique<int>(marker);
     x = co_await foo{std::move(x)};
     check(*x == marker);
     co_return x;
