@@ -23,24 +23,24 @@ struct contains_impl<S<Ts...>, S<Us...>> {
     static constexpr bool value = (std::is_base_of_v<std::type_identity<Us>, set> and ...);
 };
 
-template<typename S, typename S2, typename... SN>
+template<typename S, typename S2, typename... Ss>
 struct add_impl {
-    using result = add_impl<typename add_impl<S, S2>::result, SN...>::result;
+    using result = add_impl<typename add_impl<S, S2>::result, Ss...>::result;
 };
 
-template<typename Head, typename Tail, typename... Us>
+template<typename S, typename S2, typename Remain>
 struct subtract_impl {
-    using result = Tail;
+    using result = Remain;
 };
 
 // TODO: Down with ::template and .template
 template<typename... Ts>
 struct type_set {
-    template<typename... Us>
-    using add = add_impl<type_set, Us...>::result;
+    template<typename... Ss>
+    using add = add_impl<type_set, Ss...>::result;
 
     template<typename... Us>
-    using subtract = subtract_impl<type_set<>, type_set<Ts...>, Us...>::result;
+    using subtract = subtract_impl<type_set, type_set<Us...>, type_set<>>::result;
 
     static constexpr bool empty = sizeof...(Ts) == 0;
 
@@ -69,26 +69,13 @@ struct add_impl<S<Ts...>, S<U, Us...>> {
         add_impl<S<Ts..., U>, S<Us...>>>::result;
 };
 
-// TODO: Do filter then join instead?
 // TODO: Double check if template instantiation is lazy enough?
-template<
-    template<typename...>
-    typename S,
-    typename... Head,
-    typename T,
-    typename... Ts,
-    typename U,
-    typename... Us>
-struct subtract_impl<S<Head...>, S<T, Ts...>, U, Us...> {
+template<template<typename...> typename S, typename T, typename... Ts, typename S2, typename... Us>
+struct subtract_impl<S<T, Ts...>, S2, S<Us...>> {
     using result = std::conditional_t<
-        std::is_same_v<T, U>,
-        subtract_impl<type_set<>, S<Head..., Ts...>, Us...>,
-        subtract_impl<S<Head..., T>, S<Ts...>, U, Us...>>::result;
-};
-
-template<template<typename...> typename S, typename... Head, typename U, typename... Us>
-struct subtract_impl<S<Head...>, S<>, U, Us...> {
-    using result = subtract_impl<S<>, S<Head...>, Us...>::result;
+        S2::template contains<T>,
+        subtract_impl<S<Ts...>, S2, S<Us...>>,
+        subtract_impl<S<Ts...>, S2, S<Us..., T>>>::result;
 };
 
 } // namespace corofx::detail

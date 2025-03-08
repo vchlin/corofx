@@ -11,6 +11,9 @@
 
 namespace corofx {
 
+template<typename Task>
+class task_awaiter;
+
 template<typename Task, typename... Hs>
 class handled_task {
 public:
@@ -65,8 +68,7 @@ public:
 private:
     template<typename T, effect... Es>
     friend class task;
-    template<typename T>
-    friend class task_awaiter;
+    friend class task_awaiter<handled_task>;
 
     auto bind_handlers() noexcept -> void {
         std::apply(
@@ -143,8 +145,7 @@ private:
     friend class handler_impl;
     template<typename Task, typename... Hs>
     friend class handled_task;
-    template<typename U>
-    friend class task_awaiter;
+    friend class task_awaiter<task>;
 
     explicit task(handle_type h) noexcept : frame_{h} {}
 
@@ -197,6 +198,7 @@ public:
         return h;
     }
 
+    [[nodiscard]]
     auto await_resume() noexcept -> value_type {
         if constexpr (not std::is_void_v<value_type>) return std::move(*value_);
     }

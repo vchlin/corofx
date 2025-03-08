@@ -1,14 +1,14 @@
 #pragma once
 
+#include "config.hpp"
+
 #include <source_location>
 #include <string_view>
-
-#include "config.hpp"
 
 namespace corofx {
 
 [[noreturn]]
-COROFX_PUBLIC auto unreachable(std::string_view msg = "") noexcept -> void;
+COROFX_PUBLIC auto unreachable(std::string_view msg = {}) noexcept -> void;
 
 COROFX_PUBLIC auto check(
     bool pred,
