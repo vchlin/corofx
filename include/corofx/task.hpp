@@ -1,5 +1,6 @@
 #pragma once
 
+#include "check.hpp"
 #include "detail/type_set.hpp"
 #include "effect.hpp"
 #include "handler.hpp"
@@ -163,12 +164,14 @@ private:
     auto call_unchecked() noexcept -> void
         requires(std::is_void_v<T>)
     {
+        check(not frame_->done());
         frame_->resume();
     }
 
     auto call_unchecked(std::optional<T>& output) noexcept -> void
         requires(not std::is_void_v<T>)
     {
+        check(not frame_->done());
         set_output(output);
         frame_->resume();
     }
