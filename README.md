@@ -43,7 +43,8 @@ we can express complex control patterns using standard C++ syntax.
 
 ## A Motivating Example
 
-Here is a [generator example](examples/yield.cpp) adapted from [Koka](https://koka-lang.github.io/koka/doc/book.html#why-handlers):
+Here is a [generator example](examples/yield.cpp)
+adapted from [Koka](https://koka-lang.github.io/koka/doc/book.html#why-handlers):
 ```C++
 #include "corofx/task.hpp"
 
