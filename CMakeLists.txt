@@ -4,16 +4,16 @@ project(CoroFX
     VERSION 0.1.0
     LANGUAGES CXX)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
-include(AddExample)
-include(AddTest)
-
 option(COROFX_ENABLE_HARDENING "Enable hardening" ON)
 
 option(COROFX_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(COROFX_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 option(COROFX_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+include(AddExample)
+include(AddTest)
 
 include(CheckPIESupported)
 check_pie_supported()
@@ -112,3 +112,12 @@ if(PROJECT_IS_TOP_LEVEL)
         "${CMAKE_CURRENT_BINARY_DIR}/CoroFXConfigVersion.cmake"
         DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/CoroFX")
 endif()
+
+file(GLOB_RECURSE COROFX_ALL_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
+
+add_custom_target(format
+    COMMAND clang-format -i ${COROFX_ALL_FILES}
+    COMMENT "Formatting code...")
