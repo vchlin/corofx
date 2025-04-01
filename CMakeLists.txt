@@ -54,11 +54,18 @@ if(PROJECT_IS_TOP_LEVEL)
                 _GLIBCXX_ASSERTIONS>>)
     target_compile_options(CoroFX PUBLIC
         $<$<CXX_COMPILER_ID:Clang,GNU>:
-            -Wall -Wconversion -Werror -Wextra -Wformat=2 -Wpedantic -Wsign-conversion
+            -Wall -Wconversion -Werror -Wextra -Wformat -Wformat=2 -Wpedantic -Wsign-conversion
             -fno-rtti -fno-semantic-interposition
             -fstrict-flex-arrays=3
-            -ftrivial-auto-var-init=zero
             -fvisibility=hidden
+            $<$<STREQUAL:${CMAKE_SYSTEM_PROCESSOR},aarch64>:
+                -mbranch-protection=standard>
+            $<$<STREQUAL:${CMAKE_SYSTEM_PROCESSOR},x86_64>:
+                -fcf-protection=full>
+            $<$<CONFIG:Release>:
+                -fno-delete-null-pointer-checks
+                -fno-strict-aliasing -fno-strict-overflow
+                -ftrivial-auto-var-init=zero>
             $<$<BOOL:${COROFX_ENABLE_HARDENING}>:
                 -fstack-clash-protection
                 -fstack-protector-strong>
@@ -69,11 +76,11 @@ if(PROJECT_IS_TOP_LEVEL)
             $<$<BOOL:${COROFX_ENABLE_ASAN}>:/fsanitize=address>>)
     target_link_options(CoroFX PUBLIC
         $<$<CXX_COMPILER_ID:Clang,GNU>:
+            "LINKER:--as-needed,--no-copy-dt-needed-entries,-z,nodlopen,-z,noexecstack,-z,now,-z,relro"
             $<$<CONFIG:Release>:-s>
             $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address>
             $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread>
-            $<$<BOOL:${COROFX_ENABLE_UBSAN}>:-fsanitize=undefined -fno-sanitize-recover>
-            "LINKER:-z,nodlopen,-z,noexecstack,-z,now,-z,relro" >)
+            $<$<BOOL:${COROFX_ENABLE_UBSAN}>:-fsanitize=undefined -fno-sanitize-recover>>)
 endif()
 
 if(PROJECT_IS_TOP_LEVEL)
