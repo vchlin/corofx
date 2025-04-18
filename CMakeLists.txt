@@ -2,21 +2,16 @@ cmake_minimum_required(VERSION 3.28)
 
 project(CoroFX
     VERSION 0.1.0
-    LANGUAGES CXX)
-
-option(COROFX_ENABLE_HARDENING "Enable hardening" ON)
-
-option(COROFX_ENABLE_ASAN "Enable AddressSanitizer" OFF)
-option(COROFX_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
-option(COROFX_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+    LANGUAGES CXX
+)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-include(AddExample)
-include(AddTest)
-
 include(CheckPIESupported)
 check_pie_supported()
+
+include(ProjectSetup)
+project_add_common_options(CoroFX)
 
 add_library(CoroFX)
 add_library(CoroFX::CoroFX ALIAS CoroFX)
@@ -44,87 +39,70 @@ target_sources(CoroFX
         src/handler.cpp
         src/promise.cpp
         src/task.cpp
-        src/trace.cpp)
+        src/trace.cpp
+)
 
 if(PROJECT_IS_TOP_LEVEL)
-    target_compile_definitions(CoroFX PUBLIC
-        $<$<CXX_COMPILER_ID:Clang,GNU>:
-            $<$<BOOL:${COROFX_ENABLE_HARDENING}>:
-                _FORTIFY_SOURCE=3
-                _GLIBCXX_ASSERTIONS>>)
-    target_compile_options(CoroFX PUBLIC
-        $<$<CXX_COMPILER_ID:Clang,GNU>:
-            -Wall -Wconversion -Werror -Wextra -Wformat -Wformat=2 -Wpedantic -Wsign-conversion
-            -fno-rtti -fno-semantic-interposition
-            -fstrict-flex-arrays=3
-            -fvisibility=hidden
-            $<$<STREQUAL:${CMAKE_SYSTEM_PROCESSOR},aarch64>:
-                -mbranch-protection=standard>
-            $<$<STREQUAL:${CMAKE_SYSTEM_PROCESSOR},x86_64>:
-                -fcf-protection=full>
-            $<$<CONFIG:Release>:
-                -fno-delete-null-pointer-checks
-                -fno-strict-aliasing -fno-strict-overflow
-                -ftrivial-auto-var-init=zero>
-            $<$<BOOL:${COROFX_ENABLE_HARDENING}>:
-                -fstack-clash-protection
-                -fstack-protector-strong>
-            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address>
-            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread>
-            $<$<BOOL:${COROFX_ENABLE_UBSAN}>:-fsanitize=undefined -fno-sanitize-recover>>
-        $<$<CXX_COMPILER_ID:MSVC>:
-            $<$<BOOL:${COROFX_ENABLE_ASAN}>:/fsanitize=address>>)
-    target_link_options(CoroFX PUBLIC
-        $<$<CXX_COMPILER_ID:Clang,GNU>:
-            "LINKER:--as-needed,--no-copy-dt-needed-entries,-z,nodlopen,-z,noexecstack,-z,now,-z,relro"
-            $<$<CONFIG:Release>:-s>
-            $<$<BOOL:${COROFX_ENABLE_ASAN}>:-fsanitize=address>
-            $<$<BOOL:${COROFX_ENABLE_TSAN}>:-fsanitize=thread>
-            $<$<BOOL:${COROFX_ENABLE_UBSAN}>:-fsanitize=undefined -fno-sanitize-recover>>)
-endif()
+    target_link_libraries(CoroFX PUBLIC CoroFXBuildOptions)
 
-if(PROJECT_IS_TOP_LEVEL)
     include(CTest)
     if(BUILD_TESTING)
         add_subdirectory(examples)
         add_subdirectory(tests)
     endif()
 
+    # Installation.
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
-
     configure_package_config_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/CoroFXConfig.cmake"
-        INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/CoroFX")
+        INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/CoroFX"
+    )
     write_basic_package_version_file(
         "${CMAKE_CURRENT_BINARY_DIR}/CoroFXConfigVersion.cmake"
         VERSION ${PACKAGE_VERSION}
-        COMPATIBILITY SameMajorVersion)
+        COMPATIBILITY SameMajorVersion
+    )
     install(
-        TARGETS CoroFX
+        TARGETS CoroFX CoroFXBuildOptions
         EXPORT CoroFXTargets
         FILE_SET HEADERS
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
         ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    )
     install(
         EXPORT CoroFXTargets
         FILE CoroFXTargets.cmake
         NAMESPACE CoroFX::
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/CoroFX")
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/CoroFX"
+    )
     install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/CoroFXConfig.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/CoroFXConfigVersion.cmake"
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/CoroFX")
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/CoroFX"
+    )
+
+    # Formatting.
+    file(GLOB_RECURSE COROFX_ALL_FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
+    )
+    add_custom_target(format
+        COMMAND clang-format -i ${COROFX_ALL_FILES}
+        COMMENT "Formatting code..."
+    )
+
+    # Coverage.
+    get_property(COROFX_ALL_TESTS DIRECTORY tests PROPERTY TESTS)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND COROFX_ENABLE_COVERAGE)
+        add_custom_target(coverage
+            COMMAND llvm-profdata-18 merge -sparse *.profraw -o tests.profdata
+            COMMAND llvm-cov-18 report ${COROFX_ALL_TESTS} -instr-profile=tests.profdata
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests"
+        )
+    endif()
 endif()
-
-file(GLOB_RECURSE COROFX_ALL_FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
-
-add_custom_target(format
-    COMMAND clang-format -i ${COROFX_ALL_FILES}
-    COMMENT "Formatting code...")
