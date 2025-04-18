@@ -1,6 +1,0 @@
-function(corofx_add_test test_name)
-    add_executable(${test_name})
-    target_sources(${test_name} PRIVATE ${test_name}.cpp)
-    target_link_libraries(${test_name} PRIVATE ${ARGN})
-    add_test(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>)
-endfunction()
