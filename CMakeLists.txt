@@ -10,8 +10,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CheckPIESupported)
 check_pie_supported()
 
-include(ProjectSetup)
-project_add_common_options(CoroFX)
+include(MyBuildOptions)
+my_add_build_options(CoroFX)
 
 add_library(CoroFX)
 add_library(CoroFX::CoroFX ALIAS CoroFX)
@@ -99,9 +99,11 @@ if(PROJECT_IS_TOP_LEVEL)
     # Coverage.
     get_property(COROFX_ALL_TESTS DIRECTORY tests PROPERTY TESTS)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND COROFX_ENABLE_COVERAGE)
+        include(MyLLVMTools)
+        my_get_llvm_version(MAJOR LLVM_VERSION_MAJOR)
         add_custom_target(coverage
-            COMMAND llvm-profdata-18 merge -sparse *.profraw -o tests.profdata
-            COMMAND llvm-cov-18 report ${COROFX_ALL_TESTS} -instr-profile=tests.profdata
+            COMMAND llvm-profdata-${LLVM_VERSION_MAJOR} merge -sparse *.profraw -o tests.profdata
+            COMMAND llvm-cov-${LLVM_VERSION_MAJOR} report ${COROFX_ALL_TESTS} -instr-profile=tests.profdata
             WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests"
         )
     endif()

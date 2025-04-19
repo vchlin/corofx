@@ -1,4 +1,4 @@
-function(project_add_common_options prefix)
+function(my_add_build_options prefix)
     string(TOUPPER ${prefix} prefix_upper)
 
     option(${prefix_upper}_ENABLE_COVERAGE "Enable coverage" OFF)
