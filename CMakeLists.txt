@@ -95,14 +95,4 @@ if(PROJECT_IS_TOP_LEVEL)
         COMMAND clang-format -i ${COROFX_ALL_FILES}
         COMMENT "Formatting code..."
     )
-
-    # Coverage.
-    get_property(COROFX_ALL_TESTS DIRECTORY tests PROPERTY TESTS)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND COROFX_ENABLE_COVERAGE)
-        add_custom_target(coverage
-            COMMAND llvm-profdata merge -sparse *.profraw -o tests.profdata
-            COMMAND llvm-cov report ${COROFX_ALL_TESTS} -instr-profile=tests.profdata
-            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests"
-        )
-    endif()
 endif()
