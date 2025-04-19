@@ -99,11 +99,9 @@ if(PROJECT_IS_TOP_LEVEL)
     # Coverage.
     get_property(COROFX_ALL_TESTS DIRECTORY tests PROPERTY TESTS)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND COROFX_ENABLE_COVERAGE)
-        include(MyLLVMTools)
-        my_get_llvm_version(MAJOR LLVM_VERSION_MAJOR)
         add_custom_target(coverage
-            COMMAND llvm-profdata-${LLVM_VERSION_MAJOR} merge -sparse *.profraw -o tests.profdata
-            COMMAND llvm-cov-${LLVM_VERSION_MAJOR} report ${COROFX_ALL_TESTS} -instr-profile=tests.profdata
+            COMMAND llvm-profdata merge -sparse *.profraw -o tests.profdata
+            COMMAND llvm-cov report ${COROFX_ALL_TESTS} -instr-profile=tests.profdata
             WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests"
         )
     endif()
