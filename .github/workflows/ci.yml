@@ -57,7 +57,7 @@ jobs:
         script: |
           const path = require("path");
 
-          const workspace = "${{ github.workspace }}";
+          const workspace = String.raw`${{ github.workspace }}`;
           const preset = "${{ matrix.preset }}";
           const sanitizer = "${{ matrix.sanitizer }}";
           const report = "${{ matrix.report }}";
