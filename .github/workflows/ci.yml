@@ -87,7 +87,8 @@ jobs:
       with:
         python-version: "3.12"
 
-    - if: matrix.preset == "Clang" && matrix.build_type == "Debug" && matrix.sanitizer == ""
+    - name: Setup LLVM
+      if: ${{ matrix.preset == "Clang" && matrix.build_type == "Debug" && matrix.sanitizer == "" }}
       run: >
         sudo apt-get update &&
         sudo apt-get -y install --no-install-recommends llvm
