@@ -86,4 +86,4 @@ jobs:
       with:
         python-version: "3.12"
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      run: python ${{ github.workspace }}/tools/ci_report.py tests "$GITHUB_STEP_SUMMARY"
+      run: echo "Hello!" >> "$GITHUB_STEP_SUMMARY"
