@@ -55,12 +55,14 @@ jobs:
       id: strings
       with:
         script: |
+          const path = require("path");
+
           const workspace = "${{ github.workspace }}";
           const preset = "${{ matrix.preset }}";
           const sanitizer = "${{ matrix.sanitizer }}";
           const report = "${{ matrix.report }}";
 
-          core.setOutput("build-output-dir", core.toPlatformPath(workspace) + "/build");
+          core.setOutput("build-output-dir", path.join(workspace, "build"));
           core.setOutput("preset", preset.toLowerCase());
           core.setOutput("sanitizer", sanitizer ? `-DCOROFX_ENABLE_${sanitizer.toUpperCase()}=ON` : "");
           core.setOutput("coverage", report ? "-DCOROFX_ENABLE_COVERAGE=ON" : "");
