@@ -60,7 +60,7 @@ jobs:
           const sanitizer = "${{ matrix.sanitizer }}";
           const report = "${{ matrix.report }}";
 
-          core.setOutput("build-output-dir", workspace + "/build");
+          core.setOutput("build-output-dir", core.toPlatformpath(workspace) + "/build");
           core.setOutput("preset", preset.toLowerCase());
           core.setOutput("sanitizer", sanitizer ? `-DCOROFX_ENABLE_${sanitizer.toUpperCase()}=ON` : "");
           core.setOutput("coverage", report ? "-DCOROFX_ENABLE_COVERAGE=ON" : "");
