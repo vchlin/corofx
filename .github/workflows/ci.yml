@@ -87,10 +87,11 @@ jobs:
       with:
         python-version: "3.12"
 
-    - name: Report
-      if: ${{ matrix.preset == "Clang" && matrix.build_type == "Debug" && matrix.sanitizer == "" }}
-      working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      run: |
-        sudo apt-get update
+    - if: matrix.preset == "Clang" && matrix.build_type == "Debug" && matrix.sanitizer == ""
+      run: >
+        sudo apt-get update &&
         sudo apt-get -y install --no-install-recommends llvm
-        python ${{ github.workspace }}/tools/ci_report.py tests "$GITHUB_STEP_SUMMARY"
+
+    - name: Report
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      run: python ${{ github.workspace }}/tools/ci_report.py tests "$GITHUB_STEP_SUMMARY"
