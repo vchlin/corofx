@@ -2,11 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   schedule:
-    - cron: '17 3 * * 4'
+    - cron: "17 3 * * 4"
 
 jobs:
   build:
@@ -40,7 +40,7 @@ jobs:
           - preset: Clang
             build_type: Debug
             sanitizer: ""
-            coverage: true
+            report: true
 
         exclude:
           - preset: MSVC
@@ -89,11 +89,12 @@ jobs:
       run: ctest --build-config ${{ matrix.build_type }} --output-on-failure
 
     - uses: actions/setup-python@v5
+      if: ${{ matrix.report }}
       with:
         python-version: "3.12"
 
     - name: Report
-      if: ${{ matrix.coverage }}
+      if: ${{ matrix.report }}
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       run: >
         sudo apt-get update &&
