@@ -2,11 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   schedule:
-    - cron: '17 3 * * 4'
+    - cron: "17 3 * * 4"
 
 jobs:
   build:
@@ -37,6 +37,11 @@ jobs:
           - preset: MSVC
             os: windows-latest
 
+          - preset: Clang
+            build_type: Debug
+            sanitizer: ""
+            report: true
+
         exclude:
           - preset: MSVC
             sanitizer: ASan
@@ -46,23 +51,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set environment variables
-      shell: bash
-      run: |
-        cat << EOF >> "$GITHUB_ENV"
-        PRESET=${{ matrix.preset }}
-        SANITIZER=${{ matrix.sanitizer }}
-        EOF
-
-    - name: Set reusable strings
+    - uses: actions/github-script@v7
       id: strings
-      shell: bash
-      run: |
-        cat << EOF >> "$GITHUB_OUTPUT"
-        build-output-dir=${{ github.workspace }}/build
-        preset=${PRESET,,}
-        sanitizer=-DCOROFX_ENABLE_${SANITIZER^^}=ON
-        EOF
+      with:
+        script: |
+          const path = require("path");
+
+          const workspace = process.env.GITHUB_WORKSPACE;
+          const preset = "${{ matrix.preset }}";
+          const sanitizer = "${{ matrix.sanitizer }}";
+          const report = "${{ matrix.report }}";
+
+          core.setOutput("build-output-dir", path.join(workspace, "build"));
+          core.setOutput("preset", preset.toLowerCase());
+          core.setOutput("sanitizer", sanitizer ? `-DCOROFX_ENABLE_${sanitizer.toUpperCase()}=ON` : "");
+          core.setOutput("coverage", report ? "-DCOROFX_ENABLE_COVERAGE=ON" : "");
 
     - name: Configure CMake
       run: >
@@ -73,6 +76,7 @@ jobs:
         --preset=${{ steps.strings.outputs.preset }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         ${{ steps.strings.outputs.sanitizer }}
+        ${{ steps.strings.outputs.coverage }}
 
     - name: Build
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
@@ -80,3 +84,16 @@ jobs:
     - name: Test
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       run: ctest --build-config ${{ matrix.build_type }} --output-on-failure
+
+    - uses: actions/setup-python@v5
+      if: ${{ matrix.report }}
+      with:
+        python-version: "3.12"
+
+    - name: Report
+      if: ${{ matrix.report }}
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      run: >
+        sudo apt-get update &&
+        sudo apt-get -y install --no-install-recommends llvm &&
+        python ${{ github.workspace }}/tools/ci_report.py tests "$GITHUB_STEP_SUMMARY"
