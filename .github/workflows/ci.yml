@@ -37,6 +37,11 @@ jobs:
           - preset: MSVC
             os: windows-latest
 
+          - preset: Clang
+            build_type: Debug
+            sanitizer: ""
+            coverage: true
+
         exclude:
           - preset: MSVC
             sanitizer: ASan
@@ -87,11 +92,10 @@ jobs:
       with:
         python-version: "3.12"
 
-    - if: ${{ matrix.preset == "Clang" && matrix.build_type == "Debug" && matrix.sanitizer == "" }}
+    - name: Report
+      if: ${{ matrix.coverage }}
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
       run: >
         sudo apt-get update &&
-        sudo apt-get -y install --no-install-recommends llvm
-
-    - name: Report
-      working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      run: python ${{ github.workspace }}/tools/ci_report.py tests "$GITHUB_STEP_SUMMARY"
+        sudo apt-get -y install --no-install-recommends llvm &&
+        python ${{ github.workspace }}/tools/ci_report.py tests "$GITHUB_STEP_SUMMARY"
