@@ -61,8 +61,16 @@ jobs:
         cat << EOF >> "$GITHUB_OUTPUT"
         build-output-dir=${{ github.workspace }}/build
         preset=${PRESET,,}
-        sanitizer=-DCOROFX_ENABLE_${SANITIZER^^}=ON
-        coverage=-DCOROFX_ENABLE_COVERAGE=ON
+        if [[ -z "$SANITIZER" ]]; then
+          sanitizer=""
+        else
+          sanitizer=-DCOROFX_ENABLE_${SANITIZER^^}=ON
+        fi
+        if [[ "$PRESET" == "Clang" && ${{ matrix.build_type }} == "Debug" && -z "$SANITIZER" ]]; then
+          coverage=-DCOROFX_ENABLE_COVERAGE=ON
+        else
+          coverage=""
+        fi
         EOF
 
     - name: Configure CMake
@@ -74,6 +82,7 @@ jobs:
         --preset=${{ steps.strings.outputs.preset }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         ${{ steps.strings.outputs.sanitizer }}
+        ${{ steps.strings.outputs.coverage }}
 
     - name: Build
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
