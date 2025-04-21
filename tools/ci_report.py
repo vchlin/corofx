@@ -21,7 +21,7 @@ def convert_to_markdown(input: str) -> str:
     return "\n".join([header, div, *rows]) + "\n"
 
 
-def coverage_report(build_dir: str, output_file: str):
+def coverage_report(build_dir: str):
     with os.scandir(build_dir) as it:
         profraw_files = sorted(entry.path for entry in it
                                if entry.is_file() and entry.name.endswith(".profraw"))
@@ -34,10 +34,7 @@ def coverage_report(build_dir: str, output_file: str):
     executables = [it.removesuffix(".profraw") for it in profraw_files]
     result = subprocess.run(["llvm-cov", "report", *executables,
                              f"-instr-profile={profdata}"], capture_output=True, check=True)
-    md_table = convert_to_markdown(result.stdout.decode())
-    with open(output_file, "a") as f:
-        logger.info(f"Writing coverage report to {output_file}")
-        print(md_table, file=f)
+    return convert_to_markdown(result.stdout.decode())
 
 
 def main():
@@ -46,7 +43,13 @@ def main():
     parser.add_argument("build_dir", help="Path to the build directory")
     parser.add_argument("output_file", help="Output file for the report")
     args = parser.parse_args()
-    coverage_report(args.build_dir, args.output_file)
+
+    coverage = coverage_report(args.build_dir)
+
+    with open(args.output_file, "w") as f:
+        print("# CI Report", file=f)
+        print("## Coverage", file=f)
+        print(coverage, file=f)
 
 
 if __name__ == "__main__":
