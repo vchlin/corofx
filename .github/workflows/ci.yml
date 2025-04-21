@@ -51,24 +51,19 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set environment variables
-      shell: bash
-      run: |
-        cat << EOF >> "$GITHUB_ENV"
-        PRESET=${{ matrix.preset }}
-        SANITIZER=${{ matrix.sanitizer }}
-        EOF
-
-    - name: Set reusable strings
+    - uses: actions/github-script@v7
       id: strings
-      shell: bash
-      run: |
-        cat << EOF >> "$GITHUB_OUTPUT"
-        build-output-dir=${{ github.workspace }}/build
-        preset=${PRESET,,}
-        sanitizer=-DCOROFX_ENABLE_${SANITIZER^^}=ON
-        coverage=-DCOROFX_ENABLE_COVERAGE=ON
-        EOF
+      with:
+        script: |
+          const workspace = "${{ github.workspace }}";
+          const preset = "${{ matrix.preset }}";
+          const sanitizer = "${{ matrix.sanitizer }}";
+          const report = "${{ matrix.report }}";
+
+          core.setOutput("build-output-dir", workspace + "/build");
+          core.setOutput("preset", preset.toLowerCase());
+          core.setOutput("sanitizer", sanitizer ? `-DCOROFX_ENABLE_${sanitizer.toUpperCase()}=ON` : "");
+          core.setOutput("coverage", report ? "-DCOROFX_ENABLE_COVERAGE=ON" : "");
 
     - name: Configure CMake
       run: >
