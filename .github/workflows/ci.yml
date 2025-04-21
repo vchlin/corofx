@@ -82,8 +82,5 @@ jobs:
       run: ctest --build-config ${{ matrix.build_type }} --output-on-failure
 
     - name: Report
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       run: echo "Hello!" >> "$GITHUB_STEP_SUMMARY"
