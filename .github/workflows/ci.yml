@@ -62,6 +62,7 @@ jobs:
         build-output-dir=${{ github.workspace }}/build
         preset=${PRESET,,}
         sanitizer=-DCOROFX_ENABLE_${SANITIZER^^}=ON
+        coverage=-DCOROFX_ENABLE_COVERAGE=ON
         EOF
 
     - name: Configure CMake
@@ -87,4 +88,4 @@ jobs:
 
     - name: Report
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      run: echo "Hello!" >> "$GITHUB_STEP_SUMMARY"
+      run: python ${{ github.workspace }}/tools/ci_report.py tests "$GITHUB_STEP_SUMMARY"
