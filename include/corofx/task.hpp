@@ -7,7 +7,9 @@
 #include "promise.hpp"
 
 #include <coroutine>
+#include <optional>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 namespace corofx {
@@ -50,14 +52,10 @@ public:
     auto operator()() && noexcept -> value_type
         requires(effect_types::empty)
     {
-        if constexpr (std::is_void_v<value_type>) {
-            task_.call_unchecked();
-        } else {
-            auto output = std::optional<value_type>{};
-            set_output(output);
-            task_.call_unchecked(output);
-            return std::move(*output);
-        }
+        auto output = std::optional<value_holder<value_type>>{};
+        set_output(output);
+        task_.call_unchecked(output);
+        if constexpr (not std::is_void_v<value_type>) return std::move(*output);
     }
 
     friend auto swap(handled_task& left, handled_task& right) noexcept -> void {
@@ -95,7 +93,7 @@ private:
         return *task_.frame_;
     }
 
-    auto set_output(std::optional<value_type>& output) noexcept -> void {
+    auto set_output(std::optional<value_holder<value_type>>& output) noexcept -> void {
         task_.frame_->promise().set_output(output);
         std::apply([&](auto&... hs) { (hs.set_output(output), ...); }, handlers_);
     }
@@ -118,13 +116,9 @@ public:
     auto operator()() && noexcept -> T
         requires(effect_types::empty)
     {
-        if constexpr (std::is_void_v<T>) {
-            call_unchecked();
-        } else {
-            auto output = std::optional<T>{};
-            call_unchecked(output);
-            return std::move(*output);
-        }
+        auto output = std::optional<value_holder<T>>{};
+        call_unchecked(output);
+        if constexpr (not std::is_void_v<T>) return std::move(*output);
     }
 
     operator frame<>() && noexcept { return std::move(frame_); }
@@ -155,22 +149,11 @@ private:
         return *frame_;
     }
 
-    auto set_output(std::optional<T>& output) noexcept -> void
-        requires(not std::is_void_v<T>)
-    {
+    auto set_output(std::optional<value_holder<T>>& output) noexcept -> void {
         frame_->promise().set_output(output);
     }
 
-    auto call_unchecked() noexcept -> void
-        requires(std::is_void_v<T>)
-    {
-        check(not frame_->done());
-        frame_->resume();
-    }
-
-    auto call_unchecked(std::optional<T>& output) noexcept -> void
-        requires(not std::is_void_v<T>)
-    {
+    auto call_unchecked(std::optional<value_holder<T>>& output) noexcept -> void {
         check(not frame_->done());
         set_output(output);
         frame_->resume();
@@ -184,9 +167,7 @@ class task_awaiter : public std::suspend_always {
 public:
     using value_type = Task::value_type;
 
-    explicit task_awaiter(Task t) noexcept : task_{std::move(t)} {
-        if constexpr (not std::is_void_v<value_type>) task_.set_output(value_);
-    }
+    explicit task_awaiter(Task t) noexcept : task_{std::move(t)} { task_.set_output(value_); }
 
     task_awaiter(task_awaiter const&) = delete;
     task_awaiter(task_awaiter&&) = delete;
@@ -208,7 +189,7 @@ public:
 
 private:
     Task task_;
-    value_holder<value_type> value_;
+    std::optional<value_holder<value_type>> value_;
 };
 
 template<typename T, effect... Es>
