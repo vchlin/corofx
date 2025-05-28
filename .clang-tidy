@@ -41,8 +41,6 @@ CheckOptions:
     value: Camel_Snake_Case
   - key: readability-identifier-naming.TypeAliasCase
     value: lower_case
-  - key: readability-identifier-naming.ValueTemplateParameterCase
-    value: lower_case
   - key: readability-identifier-naming.VariableCase
     value: lower_case
   - key: readability-implicit-bool-conversion.AllowPointerConditions

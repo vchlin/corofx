@@ -5,4 +5,5 @@ function(corofx_add_example example_name)
 endfunction()
 
 corofx_add_example(raise)
+corofx_add_example(state)
 corofx_add_example(yield)

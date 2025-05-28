@@ -7,7 +7,6 @@
 #include <coroutine>
 #include <optional>
 #include <utility>
-#include <variant> // TODO: Remove for C++26.
 
 namespace corofx {
 
@@ -56,25 +55,17 @@ private:
     std::coroutine_handle<> cont_;
 };
 
-template<typename T = void>
+template<typename T>
 class promise_impl : public promise_base {
 public:
     using promise_base::return_value;
 
-    auto return_value(T value) const noexcept -> void { *output_ = std::move(value); }
+    auto return_value(value_holder<T> value) const noexcept -> void { *output_ = std::move(value); }
 
-    auto set_output(std::optional<T>& output) noexcept -> void { output_ = &output; }
+    auto set_output(std::optional<value_holder<T>>& output) noexcept -> void { output_ = &output; }
 
 private:
-    std::optional<T>* output_{};
-};
-
-template<>
-class promise_impl<> : public promise_base {
-public:
-    using promise_base::return_value;
-
-    constexpr auto return_value(std::monostate) const noexcept -> void {}
+    std::optional<value_holder<T>>* output_{};
 };
 
 } // namespace corofx
