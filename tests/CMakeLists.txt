@@ -20,3 +20,4 @@ if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND (CMAKE_BUILD_TYPE STREQUAL "De
 endif()
 corofx_add_test(test_task_move)
 corofx_add_test(test_type_set)
+corofx_add_test(test_void)

@@ -61,11 +61,17 @@ public:
     auto operator=(resumer const&) -> resumer& = delete;
     auto operator=(resumer&&) -> resumer& = delete;
 
-    // TODO: Handle void return_type.
     [[nodiscard]]
-    auto operator()(E::return_type value) noexcept -> resumer_tag {
+    auto operator()(value_holder<typename E::return_type> value) noexcept -> resumer_tag {
         effect_.set_value(std::move(value));
         return resumer_tag{resume_};
+    }
+
+    [[nodiscard]]
+    auto operator()() noexcept -> resumer_tag
+        requires(std::is_void_v<typename E::return_type>)
+    {
+        return operator()({});
     }
 
 private:
@@ -97,9 +103,13 @@ public:
         return *frame_;
     }
 
-    auto await_resume() noexcept -> value_type { return std::move(*value_); }
+    auto await_resume() noexcept -> value_type {
+        if constexpr (not std::is_void_v<value_type>) {
+            return std::move(*value_);
+        }
+    }
 
-    auto set_value(value_type value) noexcept -> void { value_ = std::move(value); }
+    auto set_value(value_holder<value_type> value) noexcept -> void { value_ = std::move(value); }
 
 private:
     E eff_; // NOTE: This effect will not be moved until the task starts running.

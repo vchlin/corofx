@@ -7,7 +7,7 @@ struct state_get {
 };
 
 struct state_put {
-    using return_type = int;
+    using return_type = void;
 
     int x{};
 };
@@ -30,7 +30,7 @@ auto do_state() -> task<void> {
     co_await stateful(max_depth).with(
         handler_of<state_put>([&](auto&& e, auto&& resume) -> task<void> {
             x = e.x;
-            co_return resume(x);
+            co_return resume();
         }),
         handler_of<state_get>([&](auto&&, auto&& resume) -> task<void> { co_return resume(x); }));
     co_return {};
