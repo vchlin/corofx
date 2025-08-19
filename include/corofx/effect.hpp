@@ -40,7 +40,7 @@ public:
     auto operator=(resumer_tag&&) -> resumer_tag& = delete;
 
 private:
-    template<effect E>
+    template<effect>
     friend class resumer;
     friend class promise_base;
 

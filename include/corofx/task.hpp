@@ -65,7 +65,7 @@ public:
     }
 
 private:
-    template<typename T, effect... Es>
+    template<typename, effect...>
     friend class task;
     friend class task_awaiter<handled_task>;
 
@@ -136,9 +136,9 @@ public:
     }
 
 private:
-    template<effect E, typename F>
+    template<effect, typename>
     friend class handler_impl;
-    template<typename Task, typename... Hs>
+    template<typename, typename...>
     friend class handled_task;
     friend class task_awaiter<task>;
 
