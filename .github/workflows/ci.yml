@@ -85,7 +85,7 @@ jobs:
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       run: ctest --build-config ${{ matrix.build_type }} --output-on-failure
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       if: ${{ matrix.report }}
       with:
         python-version: "3.12"
