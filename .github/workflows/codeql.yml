@@ -25,6 +25,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+        - language: actions
+          build-mode: none
         - language: c-cpp
           build-mode: autobuild
 
