@@ -3,7 +3,7 @@
 ## Overview
 
 Follow C++ Core Guidelines with an emphasis on consistency,
-modular design, immutability, and minimal mutation.
+modular design, and controlled state changes, with a preference for immutability.
 
 ## Philosophy
 
@@ -13,10 +13,10 @@ Modern C++ SHOULD be embraced for safety and maintainability.
 ## Type Deduction and Function Syntax
 
 - **`auto` usage**:
-  - MUST use `auto` for all variable declarations.
+  - MUST use `auto` for type deduction in all variable declarations.
+  - SHOULD use `auto&&` by default to avoid unnecessary copies;
+    use `auto` (by itself) only to explicitly create a copy.
   - SHOULD use `auto x = my_type{...}` for explicit typing.
-  - SHOULD use `auto&&` by default to avoid copies.
-  - SHOULD use `auto` only to explicitly copy.
 - **Function syntax**: MUST use trailing return types, e.g., `auto func() -> int`.
 - **Initialization**:
   - SHOULD prefer brace initialization `{}` over `()`.
@@ -41,7 +41,7 @@ Modern C++ SHOULD be embraced for safety and maintainability.
 - **Member access order**: `public` → `protected` → `private`.
   Each section MUST appear at most once.
 - **Declarations** MUST follow this order within each section:
-  1. Types
+  1. Types (nested classes, `using` aliases, `friend` classes)
   2. Static functions
   3. Constructors (including copy and move)
   4. Destructor
@@ -54,9 +54,9 @@ Modern C++ SHOULD be embraced for safety and maintainability.
 - MUST use default member initializers for primitive types, e.g., `int count_{};`.
 - **Comparisons**: SHOULD prefer `operator<=>` (the spaceship operator).
 - **Friends**:
-  - SHOULD declare `friend` functions in the `public` section:
+  - MUST declare `friend` functions in the `public` section:
     they are part of the class's public API.
-  - SHOULD declare `friend` classes at the start of the `private` section:
+  - MUST declare `friend` classes at the start of the `private` section:
     they extend private access.
 
 ### Resource Management
@@ -83,8 +83,8 @@ Modern C++ SHOULD be embraced for safety and maintainability.
 - **Scope resolution**: SHOULD use unqualified names within the same namespace
   or class.
 - **Namespaces**:
-  - MUST NOT use `using namespace` in production code.
-  - MUST prefix all standard library items with `std::`.
+  - MUST NOT use `using` directives in the global namespace of header files.
+  - SHOULD prefix all standard library items with `std::`.
   - `using some_ns::item` MAY be acceptable in function bodies.
 
 ## Code Style and Organization
