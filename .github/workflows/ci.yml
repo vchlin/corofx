@@ -23,6 +23,9 @@ jobs:
           - Clang
           - GCC
           - MSVC
+        arch:
+          - arm64
+          - x64
         build_type:
           - Debug
           - Release
@@ -32,27 +35,27 @@ jobs:
           #- Tsan
           - UBSan
 
+        exclude:
+          - preset: MSVC
+            arch: arm64
+          - preset: MSVC
+            sanitizer: ASan
+          - preset: MSVC
+            sanitizer: UBSan
+
         include:
-          - preset: Clang
+          - arch: arm64
             os: ubuntu-24.04-arm
-          - preset: Clang
-            os: ubuntu-latest
-          - preset: GCC
+          - arch: x64
             os: ubuntu-latest
           - preset: MSVC
             os: windows-latest
 
           - preset: Clang
+            arch: x64
             build_type: Debug
-            os: ubuntu-latest
             sanitizer: ""
             report: true
-
-        exclude:
-          - preset: MSVC
-            sanitizer: ASan
-          - preset: MSVC
-            sanitizer: UBSan
 
     steps:
     - uses: actions/checkout@v6
