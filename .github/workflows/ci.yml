@@ -34,6 +34,8 @@ jobs:
 
         include:
           - preset: Clang
+            os: ubuntu-24.04-arm
+          - preset: Clang
             os: ubuntu-latest
           - preset: GCC
             os: ubuntu-latest
@@ -42,6 +44,7 @@ jobs:
 
           - preset: Clang
             build_type: Debug
+            os: ubuntu-latest
             sanitizer: ""
             report: true
 
